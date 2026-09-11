@@ -1,0 +1,230 @@
+// This is your Prisma schema file for Vercel Postgres (Relational Database)
+// Strict Directives: UUIDv4 Primary Keys, UTC DateTime Hygiene, Tombstone Deletion
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum TransactionType {
+  EXPENSE
+  INCOME
+}
+
+enum MindfulTag {
+  NEED
+  WANT
+  SAVING
+  INVESTMENT
+}
+
+enum EmotionalMood {
+  BORED
+  STRESSED
+  CELEBRATING
+  FOMO
+  TREAT_MYSELF
+  CALM
+}
+
+enum QueueStatus {
+  ACTIVE
+  LOCKED
+  APPROVED
+  REJECTED
+}
+
+enum RewardType {
+  DIGITAL_EXP
+  DIGITAL_SHIELD
+  DIGITAL_THEME
+  DIGITAL_TICKET
+  REAL_WORLD_TREAT
+}
+
+enum RewardClaimStatus {
+  UNCLAIMED
+  REDEEMED
+}
+
+model User {
+  id                    String            @id @default(uuid())
+  email                 String            @unique
+  username              String
+  passwordHash          String
+  comfortFundAllowance  Decimal           @default(25.00) @db.Decimal(10, 2)
+  comfortFundRemaining  Decimal           @default(25.00) @db.Decimal(10, 2)
+  comfortFundResetDate  DateTime          @default(now()) @db.Timestamptz(6)
+  comfortFundUnlocked   Boolean           @default(false)
+  // Phase 3: Progression, Ranks & Streaks
+  exp                   Int               @default(0)
+  level                 Int               @default(1)
+  currentStreak         Int               @default(0)
+  longestStreak         Int               @default(0)
+  graceDays             Int               @default(2) // Consumable shields protecting streaks
+  lastActiveDate        String?           // Local calendar date formatted YYYY-MM-DD
+  userTimezone          String            @default("UTC")
+  activeTheme           String            @default("cyber_slate")
+  spinnerTickets        Int               @default(1)
+  // Phase 4: Accountability Mascot & Visual Assets
+  mascotName            String            @default("Mochi")
+  mascotAvatarUrl       String?
+  mascotBlobKey         String?
+  mascotPersonality     String            @default("zen") // zen | hype | pragmatic | cozy
+  createdAt             DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime          @updatedAt @db.Timestamptz(6)
+  isDeleted             Boolean           @default(false)
+
+  transactions          Transaction[]
+  categories            Category[]
+  rewards               RewardInventory[]
+  vaultItems            CollectionVaultItem[]
+  timelineFunds         TimelineFund[]
+  expEvents             ExpEvent[]
+
+  @@index([email])
+}
+
+model Category {
+  id           String        @id @default(uuid())
+  userId       String
+  name         String
+  icon         String        @default("📁")
+  color        String        @default("#3b82f6")
+  isCustom     Boolean       @default(false)
+  createdAt    DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
+  isDeleted    Boolean       @default(false)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId, isDeleted])
+}
+
+model Transaction {
+  id            String          @id @default(uuid())
+  userId        String
+  categoryId    String
+  amount        Decimal         @db.Decimal(12, 2)
+  type          TransactionType @default(EXPENSE)
+  description   String
+  date          DateTime        @db.Timestamptz(6)
+  mindfulTag    MindfulTag      @default(WANT)
+  emotionalMood EmotionalMood?
+  notes         String?
+  queueStatus   QueueStatus     @default(ACTIVE)
+  lockedUntil   DateTime?       @db.Timestamptz(6)
+  isComfortFund Boolean         @default(false)
+  costPerUse    Decimal?        @db.Decimal(10, 2)
+  estimatedUses Int?
+  createdAt     DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(6)
+  isDeleted     Boolean         @default(false)
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category      Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([userId, date])
+  @@index([userId, isDeleted])
+  @@index([userId, queueStatus])
+  @@index([categoryId])
+}
+
+model RewardInventory {
+  id          String            @id @default(uuid())
+  userId      String
+  rewardType  RewardType
+  title       String
+  description String
+  icon        String            @default("🎁")
+  rewardValue String?           // e.g. theme key, EXP count, or custom treat text
+  status      RewardClaimStatus @default(UNCLAIMED)
+  claimedAt   DateTime?         @db.Timestamptz(6)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(6)
+  isDeleted   Boolean           @default(false)
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([userId, isDeleted])
+}
+
+// Phase 4: The Collection Vault (Vercel Blob-backed inventory of owned items)
+model CollectionVaultItem {
+  id              String   @id @default(uuid())
+  userId          String
+  name            String
+  purchasePrice   Decimal  @db.Decimal(12, 2)
+  category        String   @default("General")
+  photoUrl        String   // Vercel Blob cloud URL or local base64 fallback
+  blobKey         String?  // Cloud blob identifier
+  notes           String?
+  acquisitionDate DateTime @default(now()) @db.Timestamptz(6)
+  estimatedUses   Int?     @default(100)
+  currentUses     Int      @default(1)
+  costPerUse      Decimal? @db.Decimal(10, 2)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+  isDeleted       Boolean  @default(false)
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isDeleted])
+}
+
+// Phase 4: Timeline Funds (Date-bound sinking funds with progress tracking)
+model TimelineFund {
+  id            String               @id @default(uuid())
+  userId        String
+  title         String
+  description   String?
+  icon          String               @default("🎯")
+  targetAmount  Decimal              @db.Decimal(12, 2)
+  currentAmount Decimal              @default(0.00) @db.Decimal(12, 2)
+  targetDate    DateTime             @db.Timestamptz(6)
+  categoryTag   String?              @default("Goal")
+  isCompleted   Boolean              @default(false)
+  createdAt     DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime             @updatedAt @db.Timestamptz(6)
+  isDeleted     Boolean              @default(false)
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  allocations   TimelineAllocation[]
+
+  @@index([userId, isDeleted])
+}
+
+model TimelineAllocation {
+  id          String       @id @default(uuid())
+  fundId      String
+  amount      Decimal      @db.Decimal(12, 2)
+  source      String       @default("DIRECT") // DIRECT | COMFORT_FUND | TRANSACTION
+  note        String?
+  allocatedAt DateTime     @default(now()) @db.Timestamptz(6)
+
+  fund        TimelineFund @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@index([fundId])
+}
+
+model ExpEvent {
+  id          String   @id @default(uuid())
+  userId      String
+  amount      Int
+  reason      String
+  categoryTag String
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+

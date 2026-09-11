@@ -1,0 +1,6 @@
+{
+  "name": "Mokaia",
+  "description": "A gamified money manager and mindful expense tracker focusing on impulse control, emotional awareness, and positive financial habits.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

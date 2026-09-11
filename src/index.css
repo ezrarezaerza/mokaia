@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+:root, [data-theme="cyber_slate"] {
+  --theme-bg: #0F172A;
+  --theme-surface: #1E293B;
+  --theme-surface-subtle: #162235;
+  --theme-card: #0b1322;
+  --theme-border: #334155;
+  --theme-accent: #38bdf8;
+  --theme-accent-gradient: linear-gradient(135deg, #0ea5e9, #38bdf8);
+}
+
+[data-theme="emerald_sanctuary"] {
+  --theme-bg: #03140e;
+  --theme-surface: #0a2e21;
+  --theme-surface-subtle: #072218;
+  --theme-card: #041a13;
+  --theme-border: #14532d;
+  --theme-accent: #34d399;
+  --theme-accent-gradient: linear-gradient(135deg, #059669, #34d399);
+}
+
+[data-theme="cyberpunk_neon"] {
+  --theme-bg: #0e021a;
+  --theme-surface: #200936;
+  --theme-surface-subtle: #170628;
+  --theme-card: #140424;
+  --theme-border: #581c87;
+  --theme-accent: #e879f9;
+  --theme-accent-gradient: linear-gradient(135deg, #a855f7, #f43f5e);
+}
+
+[data-theme="champagne_gold"] {
+  --theme-bg: #0e0c08;
+  --theme-surface: #221d13;
+  --theme-surface-subtle: #19140c;
+  --theme-card: #151109;
+  --theme-border: #594723;
+  --theme-accent: #facc15;
+  --theme-accent-gradient: linear-gradient(135deg, #ca8a04, #fde047);
+}
+
+[data-theme="sunset_solstice"] {
+  --theme-bg: #150814;
+  --theme-surface: #2c1229;
+  --theme-surface-subtle: #210c1f;
+  --theme-card: #1b0919;
+  --theme-border: #701a50;
+  --theme-accent: #fb7185;
+  --theme-accent-gradient: linear-gradient(135deg, #e11d48, #fb923c);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: #334155 transparent;
+  }
+  
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--theme-bg, #0F172A);
+    color: #F8FAFC;
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    transition: background-color 0.25s ease;
+  }
+
+  input, textarea, button, select, a {
+    user-select: auto;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}
+
+/* Sleek global scrollbar styling matching slate theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Mobile & PWA Utility Classes */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.touch-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+}
+
+/* Safe area padding utilities for notched mobile screens */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+}
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0.5rem));
+}
+.bottom-safe {
+  bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+}
+
+
