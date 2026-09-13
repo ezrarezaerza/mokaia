@@ -25,12 +25,17 @@ import {
   Volume2,
   VolumeX,
   Smartphone,
+  Coins,
+  Globe,
 } from 'lucide-react';
 import type { LocalUser } from '../types';
 import type { SyncEngineStatus } from '../lib/syncEngine';
 import { exportLocalDatabaseToJson } from '../lib/db';
 import { soundFx } from '../lib/soundFx';
 import { haptics } from '../lib/haptics';
+import { useCurrency } from '../context/CurrencyContext';
+import { CURRENCIES, CurrencyCode } from '../lib/currency';
+import { useTranslation } from '../context/LanguageContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -67,6 +72,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isMobile, setIsMobile] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(soundFx.isEnabled());
   const [hapticsEnabled, setHapticsEnabled] = useState(haptics.isEnabled());
+  const { currency, setCurrency, format } = useCurrency();
+  const { t, language, setLanguage, formatDateTime } = useTranslation();
 
   React.useEffect(() => {
     const checkMobile = () => {
@@ -78,16 +85,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   }, []);
 
   const formatLastSync = (isoString: string | null) => {
-    if (!isoString) return 'Never synced in this session';
+    if (!isoString) return language === 'id' ? 'Belum pernah disinkronkan' : 'Never synced in this session';
     try {
       const date = new Date(isoString);
-      return new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      }).format(date);
+      return formatDateTime(date);
     } catch {
       return isoString;
     }
@@ -147,10 +148,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
               <div>
                 <h2 className="text-base font-bold text-white tracking-tight">
-                  Settings & Preferences
+                  {t('settings.title')}
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Account, synchronization, and tools
+                  {t('settings.subtitle')}
                 </p>
               </div>
             </div>
@@ -176,7 +177,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span>General & Tools</span>
+              <span>{t('settings.tabGeneral')}</span>
             </button>
             <button
               type="button"
@@ -188,7 +189,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }`}
             >
               <Cloud className="w-3.5 h-3.5 text-blue-400" />
-              <span>Sync & Cloud</span>
+              <span>{t('settings.tabSync')}</span>
               {syncStatus.pendingCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-amber-500/20 text-amber-400 border border-amber-500/30">
                   {syncStatus.pendingCount}
@@ -205,7 +206,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }`}
             >
               <Database className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Data & Backup</span>
+              <span>{t('settings.tabData')}</span>
             </button>
           </div>
 
@@ -235,6 +236,143 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         {user?.email || 'Offline-first Local Profile'}
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                {/* Language & Localization Section */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="text-[11px] font-mono uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-blue-400" />
+                      <span>{t('settings.language')}</span>
+                    </label>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                      {language === 'id' ? 'Bahasa Indonesia (ID)' : 'English (US)'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-2.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundFx.playTickSound();
+                          setLanguage('id');
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                          language === 'id'
+                            ? 'bg-blue-500/15 border-blue-500/50 text-white shadow-sm ring-1 ring-blue-500/30'
+                            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl">🇮🇩</span>
+                          <div>
+                            <div className="text-xs font-bold text-white">Bahasa Indonesia</div>
+                            <div className="text-[10px] text-slate-400">Default & Lokal</div>
+                          </div>
+                        </div>
+                        {language === 'id' && <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundFx.playTickSound();
+                          setLanguage('en');
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                          language === 'en'
+                            ? 'bg-blue-500/15 border-blue-500/50 text-white shadow-sm ring-1 ring-blue-500/30'
+                            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl">🇺🇸</span>
+                          <div>
+                            <div className="text-xs font-bold text-white">English</div>
+                            <div className="text-[10px] text-slate-400">International</div>
+                          </div>
+                        </div>
+                        {language === 'en' && <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed pt-0.5">
+                      {language === 'id'
+                        ? 'Format tanggal, pesan pendamping (Mascot), dan navigasi disesuaikan otomatis secara offline.'
+                        : 'Dates, companion mascot reflections, and all interface text adapt instantly offline.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Currency & Regional Formatting Section */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="text-[11px] font-mono uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5">
+                      <Coins className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Currency & Number Formatting</span>
+                    </label>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                      Active: {currency} ({CURRENCIES[currency]?.symbol})
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-3">
+                    <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-700/40">
+                      <span className="text-slate-400">Live Format Preview</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white font-mono bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-700">
+                          {format(150000)}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          (Compact: {format(1500000, { compact: true })})
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {(Object.keys(CURRENCIES) as CurrencyCode[]).map((code) => {
+                        const item = CURRENCIES[code];
+                        const isSelected = currency === code;
+                        return (
+                          <button
+                            key={code}
+                            type="button"
+                            onClick={() => {
+                              soundFx.playTickSound();
+                              setCurrency(code);
+                            }}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between ${
+                              isSelected
+                                ? 'bg-amber-500/15 border-amber-500/50 text-white shadow-sm ring-1 ring-amber-500/30'
+                                : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700 hover:bg-slate-850'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-base">{item.flag}</span>
+                              <span className="text-xs font-mono font-bold text-slate-200">
+                                {item.symbol}
+                              </span>
+                            </div>
+                            <div className="mt-1.5">
+                              <div className="text-xs font-bold text-white flex items-center justify-between">
+                                <span>{item.code}</span>
+                                {isSelected && (
+                                  <CheckCircle2 className="w-3 h-3 text-amber-400 shrink-0" />
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-400 truncate">
+                                {item.nativeName}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
+                      Values are preserved and re-labeled to your chosen currency format without altering your historical records.
+                    </p>
                   </div>
                 </div>
 
@@ -368,7 +506,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           Synthesized Sound Effects
                         </div>
                         <p className="text-[11px] text-slate-400">
-                          Web Audio feedback for spins, unlocks, and saves
+                          Sound effects for spins, rewards, and milestones
                         </p>
                       </div>
                     </div>
@@ -482,8 +620,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                         <p className="text-xs text-slate-400">
                           {syncStatus.isOnline && !syncStatus.isSimulatedOffline
-                            ? 'Dexie.js synchronized with Postgres backend'
-                            : 'Transactions saved to local IndexedDB queue'}
+                            ? 'Your data is securely synchronized with the cloud'
+                            : 'Saved safely to your device, ready to sync when back online'}
                         </p>
                       </div>
                     </div>
@@ -523,7 +661,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span>
                       {syncStatus.isSyncing
                         ? 'Synchronizing Local Records...'
-                        : 'Force Cloud Sync Now'}
+                        : 'Sync with Cloud Now'}
                     </span>
                   </button>
                 </div>
@@ -544,7 +682,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           Simulated Offline Mode
                         </div>
                         <p className="text-[11px] text-slate-400">
-                          Simulate network drop to inspect zero-latency offline queuing
+                          Simulate being offline to test local entries and automatic sync
                         </p>
                       </div>
                     </div>
@@ -579,10 +717,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                     <div>
                       <div className="text-xs font-bold text-white">
-                        Export JSON Backup
+                        Export Backup File
                       </div>
                       <p className="text-[11px] text-slate-400">
-                        Download an offline JSON snapshot of your transactions, categories, and progression
+                        Download a complete backup file of your spending history, funds, and achievements
                       </p>
                     </div>
                   </div>
@@ -602,10 +740,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     )}
                     <span>
                       {isExporting
-                        ? 'Exporting Database...'
+                        ? 'Preparing Backup...'
                         : exportSuccess
                         ? 'Backup Downloaded Successfully!'
-                        : 'Download Ledger Snapshot (.json)'}
+                        : 'Download Backup File (.json)'}
                     </span>
                   </button>
                 </div>
@@ -616,8 +754,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <span>Local Data Privacy & Storage</span>
                   </div>
                   <p className="text-[11px] leading-relaxed">
-                    Mokaia stores your primary ledger directly in browser IndexedDB (via Dexie.js).
-                    When online, entries are incrementally synced with encrypted timestamps.
+                    Mokaia stores your primary data securely right on your device so it is always accessible offline.
+                    When connected, your entries automatically synchronize with your cloud backup.
                   </p>
                 </div>
               </div>
@@ -627,7 +765,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Footer with Sign Out */}
           <div className="p-4 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between">
             <span className="text-[11px] text-slate-500 font-mono">
-              Mokaia v1.2 • Offline-First
+              Mokaia • Mindful Money Manager
             </span>
             <button
               type="button"

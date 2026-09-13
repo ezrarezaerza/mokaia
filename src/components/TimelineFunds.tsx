@@ -25,6 +25,7 @@ import {
   deleteLocalTimelineFund,
   db,
 } from '../lib/db';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface TimelineFundsProps {
   user: LocalUser | null;
@@ -36,6 +37,7 @@ const DEFAULT_FUND_ICONS = ['✈️', '💻', '🚗', '🏠', '🎒', '💍', '�
 export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
   if (!user) return null;
 
+  const { format: formatMoney, symbol, config } = useCurrency();
   const [funds, setFunds] = useState<LocalTimelineFund[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
@@ -135,7 +137,7 @@ export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
     if (allocateSource === 'COMFORT_FUND') {
       const currentUser = await db.users.get(user.id);
       if (!currentUser || (currentUser.comfortFundRemaining ?? 0) < amount) {
-        setAllocateError(`Insufficient Comfort Fund allowance ($${currentUser?.comfortFundRemaining.toFixed(2) ?? '0.00'} remaining)`);
+        setAllocateError(`Insufficient Comfort Fund allowance (${formatMoney(currentUser?.comfortFundRemaining ?? 0)} remaining)`);
         return;
       }
       // Deduct from comfort fund
@@ -188,13 +190,13 @@ export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-semibold">
               <Target className="w-3.5 h-3.5 text-sky-400" />
-              <span>Relational Sinking Funds • Goal Milestones</span>
+              <span>Sinking Funds • Milestone Goals</span>
             </div>
             <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
               Timeline Funds
             </h2>
             <p className="text-xs md:text-sm text-slate-300 max-w-xl">
-              Date-bound sinking funds that turn vague savings desires into mathematically paced daily targets.
+              Sinking funds with clear target dates, broken down into manageable, stress-free daily savings goals.
             </p>
           </div>
 
@@ -213,7 +215,7 @@ export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
           <div className="flex items-center justify-between text-xs font-mono">
             <span className="text-slate-400">Total Sinking Fund Progress</span>
             <span className="text-sky-300 font-bold">
-              ${totalSaved.toFixed(2)} / ${totalTarget.toFixed(2)} ({totalProgress}%)
+              {formatMoney(totalSaved)} / {formatMoney(totalTarget)} ({totalProgress}%)
             </span>
           </div>
           <div className="h-2.5 w-full rounded-full bg-slate-900 overflow-hidden border border-slate-700/50">
@@ -317,8 +319,8 @@ export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
                     <div className="flex items-center justify-between text-xs font-mono">
                       <span className="text-slate-400">Funded</span>
                       <span className="text-white font-bold">
-                        ${fund.currentAmount.toFixed(2)}{' '}
-                        <span className="text-slate-400">/ ${fund.targetAmount.toFixed(2)}</span>{' '}
+                        {formatMoney(fund.currentAmount)}{' '}
+                        <span className="text-slate-400">/ {formatMoney(fund.targetAmount)}</span>{' '}
                         <strong className="text-sky-300">({progress}%)</strong>
                       </span>
                     </div>
@@ -344,7 +346,7 @@ export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
                           Daily Target Pace
                         </span>
                         <span className="font-mono font-bold text-sky-300">
-                          ${dailyRequired.toFixed(2)} / day
+                          {formatMoney(dailyRequired)} / day
                         </span>
                       </div>
                       <div>
@@ -352,7 +354,7 @@ export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
                           Weekly Equivalent
                         </span>
                         <span className="font-mono font-bold text-indigo-300">
-                          ${weeklyRequired.toFixed(2)} / wk
+                          {formatMoney(weeklyRequired)} / wk
                         </span>
                       </div>
                     </div>
@@ -485,13 +487,13 @@ export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-xs font-mono uppercase text-slate-300">
-                        Target Amount ($) *
+                        Target Amount ({symbol}) *
                       </label>
                       <input
                         type="number"
-                        step="0.01"
+                        step={config.decimals === 0 ? '1000' : '0.01'}
                         required
-                        placeholder="1200.00"
+                        placeholder={config.decimals === 0 ? '1500000' : '1200.00'}
                         value={targetAmount}
                         onChange={(e) => setTargetAmount(e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white focus:outline-hidden focus:border-sky-500 font-mono"
@@ -596,7 +598,7 @@ export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
                   <div>
                     <h3 className="text-sm sm:text-base font-black text-white">Contribute to {selectedFund.title}</h3>
                     <p className="text-[11px] sm:text-xs text-slate-400">
-                      Remaining: ${(selectedFund.targetAmount - selectedFund.currentAmount).toFixed(2)}
+                      Remaining: {formatMoney(selectedFund.targetAmount - selectedFund.currentAmount)}
                     </p>
                   </div>
                 </div>
@@ -621,14 +623,14 @@ export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
 
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-slate-300">
-                      Contribution Amount ($) *
+                      Contribution Amount ({symbol}) *
                     </label>
                     <input
                       type="number"
-                      step="0.01"
+                      step={config.decimals === 0 ? '1000' : '0.01'}
                       required
                       autoFocus
-                      placeholder="50.00"
+                      placeholder={config.decimals === 0 ? '50000' : '50.00'}
                       value={allocateAmount}
                       onChange={(e) => setAllocateAmount(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-base font-mono font-bold text-white focus:outline-hidden focus:border-sky-500"
@@ -669,7 +671,7 @@ export function TimelineFunds({ user, onOpenShareCard }: TimelineFundsProps) {
                           <span>Comfort Fund</span>
                         </div>
                         <span className="text-[10px] text-slate-400 block mt-1">
-                          ${user.comfortFundRemaining.toFixed(2)} available
+                          {formatMoney(user.comfortFundRemaining)} available
                         </span>
                       </button>
                     </div>

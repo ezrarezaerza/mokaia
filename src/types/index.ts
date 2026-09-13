@@ -39,6 +39,7 @@ export interface LocalUser {
   // Phase 3: Progression, Ranks & Streaks
   exp: number;
   level: number;
+  lastCelebratedLevel?: number; // Highest level already acknowledged in celebration modal
   currentStreak: number;
   longestStreak: number;
   graceDays: number; // Consumable shields protecting streaks
@@ -51,8 +52,13 @@ export interface LocalUser {
   mascotAvatarUrl?: string | null;
   mascotBlobKey?: string | null;
   mascotPersonality?: MascotPersonality;
+  preferredCurrency?: 'IDR' | 'USD' | 'EUR' | 'GBP' | 'SGD' | 'MYR' | 'JPY' | 'AUD';
+  preferredLocale?: string;
+  preferredLanguage?: LanguageCode;
   createdAt: string; // ISO 8601 UTC
 }
+
+export type LanguageCode = 'id' | 'en';
 
 export interface LocalCategory {
   id: string; // UUIDv4
@@ -92,7 +98,7 @@ export interface LocalTransaction {
 
 export interface SyncQueueItem {
   id: string;
-  entityType: 'transaction' | 'category';
+  entityType: 'transaction' | 'category' | 'debt' | 'payment';
   entityId: string;
   action: 'create' | 'update' | 'delete';
   payload: any;
@@ -269,7 +275,8 @@ export type MilestoneCardType =
   | 'COOLING_OFF_VICTORY'
   | 'RANK_LEVEL_UP'
   | 'TIMELINE_FUND_GOAL'
-  | 'VAULT_ITEM_MILESTONE';
+  | 'VAULT_ITEM_MILESTONE'
+  | 'DEBT_CONQUERED';
 
 export interface MilestoneShareCardData {
   type: MilestoneCardType;
@@ -296,7 +303,9 @@ export type ExpCategoryTag =
   | 'REWARD_SPIN'
   | 'TIMELINE_FUND'
   | 'VAULT'
-  | 'LEVEL_UP';
+  | 'LEVEL_UP'
+  | 'DEBT_PAYMENT'
+  | 'DEBT_CONQUERED';
 
 export interface LocalExpEvent {
   id: string; // UUIDv4
@@ -306,5 +315,55 @@ export interface LocalExpEvent {
   categoryTag: ExpCategoryTag;
   createdAt: string; // ISO 8601 UTC
 }
+
+// Phase 5: Debt & Liabilities Unified Command Center Types
+export type DebtType =
+  | 'BNPL'             // Buy Now Pay Later (Klarna, Affirm, Afterpay, 4-pay)
+  | 'IOU_OWED'         // Money I owe to a friend/peer (informal liability)
+  | 'IOU_RECEIVABLE'   // Money a friend owes me (informal asset/receivable)
+  | 'CREDIT_CARD'      // Revolving credit card balance with APR
+  | 'LOAN_MORTGAGE';   // Fixed amortized loan, auto loan, or mortgage
+
+export type RepaymentFrequency = 'ONE_OFF' | 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY';
+
+export type DebtStatus = 'ACTIVE' | 'PAID_OFF';
+
+export interface LocalDebt {
+  id: string; // UUIDv4
+  userId: string;
+  name: string;
+  debtType: DebtType;
+  totalAmount: number; // Initial principal / total order sum
+  remainingBalance: number; // Current unpaid balance
+  interestRate: number; // APR % (0 for BNPL/IOU, e.g. 22.4 for credit cards)
+  minimumPayment: number; // Minimum monthly / cycle installment
+  counterpartyName?: string; // Friend's name or Bank/Provider (e.g., "Sarah", "Klarna", "Chase")
+  dueDate?: string; // Next payment due date (YYYY-MM-DD or ISO)
+  frequency: RepaymentFrequency;
+  installmentCount?: number; // Total installment chunks (e.g. 4 for PayLater)
+  installmentsPaid?: number; // Number of installments completed
+  notes?: string;
+  status: DebtStatus;
+  syncStatus?: SyncStatus;
+  isDeleted?: boolean; // Tombstone deletion
+  createdAt: string; // ISO 8601 UTC
+  updatedAt: string; // ISO 8601 UTC
+}
+
+export interface LocalDebtPayment {
+  id: string; // UUIDv4
+  debtId: string;
+  userId: string;
+  amount: number;
+  principalAmount?: number;
+  interestAmount?: number;
+  paymentDate: string; // ISO 8601 UTC
+  notes?: string;
+  syncedToLedger?: boolean; // True if an expense was recorded in transactions table
+  syncStatus?: SyncStatus;
+  createdAt: string; // ISO 8601 UTC
+}
+
+export type DebtPayoffStrategy = 'SNOWBALL' | 'AVALANCHE';
 
 

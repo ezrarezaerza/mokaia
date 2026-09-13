@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { WifiOff } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 interface OfflineBannerProps {
   isOffline: boolean;
@@ -14,6 +15,7 @@ export const OfflineBanner: React.FC<OfflineBannerProps> = ({
   isSimulated,
   pendingCount,
 }) => {
+  const { language } = useTranslation();
   if (!isOffline) return null;
 
   return (
@@ -21,8 +23,12 @@ export const OfflineBanner: React.FC<OfflineBannerProps> = ({
       <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
       <WifiOff className="w-3.5 h-3.5 shrink-0" />
       <span>
-        You are offline — all changes are saved safely on your device and will sync automatically when reconnected.
-        {pendingCount > 0 ? ` (${pendingCount} pending)` : ''}
+        {language === 'id'
+          ? 'Anda sedang offline — semua perubahan tersimpan aman di perangkat Anda dan disinkronkan otomatis saat terhubung kembali.'
+          : 'You are offline — all changes are saved safely on your device and will sync automatically when reconnected.'}
+        {pendingCount > 0
+          ? ` (${pendingCount} ${language === 'id' ? 'tertunda' : 'pending'})`
+          : ''}
       </span>
     </div>
   );

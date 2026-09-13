@@ -17,6 +17,7 @@ import {
 import type { ImpulseVictoryResult } from '../lib/db';
 import { soundFx } from '../lib/soundFx';
 import { haptics } from '../lib/haptics';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface ImpulseVictoryCelebrationModalProps {
   isOpen: boolean;
@@ -37,6 +38,8 @@ export const ImpulseVictoryCelebrationModal: React.FC<ImpulseVictoryCelebrationM
   mascotPersonality = 'zen',
   onOpenSpinner,
 }) => {
+  const { format: formatMoney } = useCurrency();
+
   useEffect(() => {
     if (isOpen && victoryData) {
       soundFx.playImpulseVictorySound();
@@ -59,21 +62,15 @@ export const ImpulseVictoryCelebrationModal: React.FC<ImpulseVictoryCelebrationM
 
   const getMascotVictorySpeech = () => {
     if (mascotPersonality === 'hype') {
-      return `BOOM! Willpower victory! You crushed the urge to buy "${victoryData.itemDescription}" and defended $${victoryData.savedAmount.toFixed(
-        2
-      )}! That's how champions build real wealth!`;
+      return `BOOM! Willpower victory! You crushed the urge to buy "${victoryData.itemDescription}" and defended ${formatMoney(victoryData.savedAmount)}! That's how champions build real wealth!`;
     }
     if (mascotPersonality === 'pragmatic') {
-      return `Logical victory logged. By rejecting "${victoryData.itemDescription}", you retained $${victoryData.savedAmount.toFixed(
-        2
-      )} of capital with 0% depreciation. Outstanding ROI!`;
+      return `Logical victory logged. By rejecting "${victoryData.itemDescription}", you retained ${formatMoney(victoryData.savedAmount)} of capital with 0% depreciation. Outstanding ROI!`;
     }
     if (mascotPersonality === 'cozy') {
       return `So proud of you! Walking away from "${victoryData.itemDescription}" gives your future self so much peace of mind. Here is a treat ticket for the wheel!`;
     }
-    return `Mindful triumph! You paused, waited, and chose intentional living over "${victoryData.itemDescription}". $${victoryData.savedAmount.toFixed(
-      2
-    )} is still yours to direct.`;
+    return `Mindful triumph! You paused, waited, and chose intentional living over "${victoryData.itemDescription}". ${formatMoney(victoryData.savedAmount)} is still yours to direct.`;
   };
 
   return (
@@ -132,7 +129,7 @@ export const ImpulseVictoryCelebrationModal: React.FC<ImpulseVictoryCelebrationM
               Money Protected & Kept
             </div>
             <div className="text-4xl font-extrabold text-emerald-300 tracking-tight">
-              +${victoryData.savedAmount.toFixed(2)}
+              +{formatMoney(victoryData.savedAmount)}
             </div>
             <div className="text-xs text-slate-400 mt-1">
               Still growing for your real goals and freedom
@@ -190,7 +187,7 @@ export const ImpulseVictoryCelebrationModal: React.FC<ImpulseVictoryCelebrationM
               <span>Lifetime Impulses Resisted:</span>
             </span>
             <span className="font-mono font-bold text-slate-200">
-              {victoryData.totalResistedCount} ({`$${victoryData.totalSavedAmount.toFixed(2)} total`})
+              {victoryData.totalResistedCount} ({formatMoney(victoryData.totalSavedAmount)} total)
             </span>
           </div>
 

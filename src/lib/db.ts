@@ -19,6 +19,10 @@ import type {
   ExpCategoryTag,
   EmotionalMood,
   MascotPersonality,
+  LocalDebt,
+  LocalDebtPayment,
+  DebtType,
+  DebtStatus,
 } from '../types';
 import { getLevelFromExp, getRankForLevel, EXP_RULES } from './gamification';
 
@@ -32,6 +36,8 @@ export class ExpenseTrackerDB extends Dexie {
   timelineAllocations!: Table<LocalTimelineAllocation, string>;
   syncQueue!: Table<SyncQueueItem, string>;
   expEvents!: Table<LocalExpEvent, string>;
+  debts!: Table<LocalDebt, string>;
+  debtPayments!: Table<LocalDebtPayment, string>;
 
   constructor() {
     super('ExpenseTrackerDB');
@@ -103,6 +109,21 @@ export class ExpenseTrackerDB extends Dexie {
       timelineAllocations: 'id, fundId, allocatedAt',
       syncQueue: 'id, entityType, entityId, action, createdAt',
       expEvents: 'id, userId, categoryTag, createdAt',
+    });
+
+    // Version 8: Phase 5 Unified Debt & Liabilities Command Center
+    this.version(8).stores({
+      transactions: 'id, userId, categoryId, type, date, syncStatus, isDeleted, queueStatus, lockedUntil, emotionalMood, createdAt, updatedAt',
+      categories: 'id, userId, name, isCustom, syncStatus, isDeleted, createdAt, updatedAt',
+      users: 'id, email, username, exp, level, currentStreak, graceDays, activeTheme, mascotPersonality',
+      rewards: 'id, userId, status, rewardType, isDeleted, createdAt, updatedAt',
+      vaultItems: 'id, userId, category, isDeleted, createdAt, updatedAt',
+      timelineFunds: 'id, userId, isCompleted, isDeleted, targetDate, createdAt',
+      timelineAllocations: 'id, fundId, allocatedAt',
+      syncQueue: 'id, entityType, entityId, action, createdAt',
+      expEvents: 'id, userId, categoryTag, createdAt',
+      debts: 'id, userId, debtType, status, dueDate, remainingBalance, syncStatus, isDeleted, createdAt, updatedAt',
+      debtPayments: 'id, debtId, userId, paymentDate, syncStatus, createdAt',
     });
   }
 }
@@ -1091,6 +1112,31 @@ export async function awardUserExp(
 }
 
 /**
+ * Persist acknowledged level celebration so modal does not repeat across sessions
+ */
+export async function acknowledgeUserLevelCelebration(userId: string, level: number): Promise<void> {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`mokaia_celebrated_level_${userId}`, String(level));
+    }
+  } catch (err) {
+    console.warn('[Gamification] Failed to write celebrated level to localStorage:', err);
+  }
+
+  try {
+    const user = await db.users.get(userId);
+    if (user) {
+      await db.users.put({
+        ...user,
+        lastCelebratedLevel: Math.max(user.lastCelebratedLevel ?? 1, level),
+      });
+    }
+  } catch (err) {
+    console.warn('[Gamification] Failed to persist celebrated level to Dexie:', err);
+  }
+}
+
+/**
  * Retrieve recent EXP audit history for transparency
  */
 export async function getRecentExpEvents(userId: string, limit: number = 30): Promise<LocalExpEvent[]> {
@@ -1875,6 +1921,329 @@ export async function calculateEmotionalSpendingInsights(
     topSpendingAmount,
     behavioralTakeaway,
   };
+}
+
+// ============================================================================
+// Phase 5: Debt & Liabilities Unified Command Center Functions
+// ============================================================================
+
+/**
+ * Fetch all non-deleted debts for a user, sorted by status (active first) and due date
+ */
+export async function getLocalDebts(userId: string): Promise<LocalDebt[]> {
+  try {
+    const list = await db.debts
+      .where('userId')
+      .equals(userId)
+      .toArray();
+
+    return list
+      .filter((d) => !d.isDeleted)
+      .sort((a, b) => {
+        if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1;
+        if (a.status !== 'ACTIVE' && b.status === 'ACTIVE') return 1;
+        if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+        return b.createdAt.localeCompare(a.createdAt);
+      });
+  } catch (err) {
+    console.error('Failed to getLocalDebts:', err);
+    return [];
+  }
+}
+
+/**
+ * Create a new debt record (BNPL, IOU, Credit Card, or Mortgage)
+ */
+export async function createLocalDebt(
+  data: Omit<LocalDebt, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus' | 'isDeleted'>
+): Promise<LocalDebt> {
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+
+  const newDebt: LocalDebt = {
+    ...data,
+    id,
+    remainingBalance: Math.max(0, data.remainingBalance),
+    status: data.remainingBalance <= 0 ? 'PAID_OFF' : 'ACTIVE',
+    syncStatus: 'pending',
+    isDeleted: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await db.debts.put(newDebt);
+
+  // Queue background sync
+  await db.syncQueue.put({
+    id: crypto.randomUUID(),
+    entityType: 'debt',
+    entityId: id,
+    action: 'create',
+    payload: newDebt,
+    attempts: 0,
+    createdAt: now,
+  });
+
+  return newDebt;
+}
+
+/**
+ * Update an existing debt record
+ */
+export async function updateLocalDebt(
+  id: string,
+  updates: Partial<Omit<LocalDebt, 'id' | 'userId' | 'createdAt'>>
+): Promise<LocalDebt | null> {
+  const existing = await db.debts.get(id);
+  if (!existing || existing.isDeleted) return null;
+
+  const now = new Date().toISOString();
+  const nextRemaining = updates.remainingBalance !== undefined ? Math.max(0, updates.remainingBalance) : existing.remainingBalance;
+  const nextStatus: DebtStatus = nextRemaining <= 0 ? 'PAID_OFF' : (updates.status ?? existing.status);
+
+  const updated: LocalDebt = {
+    ...existing,
+    ...updates,
+    remainingBalance: nextRemaining,
+    status: nextStatus,
+    syncStatus: 'pending',
+    updatedAt: now,
+  };
+
+  await db.debts.put(updated);
+
+  await db.syncQueue.put({
+    id: crypto.randomUUID(),
+    entityType: 'debt',
+    entityId: id,
+    action: 'update',
+    payload: updated,
+    attempts: 0,
+    createdAt: now,
+  });
+
+  return updated;
+}
+
+/**
+ * Soft-delete a debt record
+ */
+export async function deleteLocalDebt(id: string): Promise<boolean> {
+  const existing = await db.debts.get(id);
+  if (!existing) return false;
+
+  const now = new Date().toISOString();
+  const tombstone: LocalDebt = {
+    ...existing,
+    isDeleted: true,
+    syncStatus: 'pending_delete',
+    updatedAt: now,
+  };
+
+  await db.debts.put(tombstone);
+
+  await db.syncQueue.put({
+    id: crypto.randomUUID(),
+    entityType: 'debt',
+    entityId: id,
+    action: 'delete',
+    payload: { id },
+    attempts: 0,
+    createdAt: now,
+  });
+
+  return true;
+}
+
+/**
+ * Log a payment against a debt with optional main ledger transaction creation
+ */
+export async function logLocalDebtPayment(params: {
+  debtId: string;
+  userId: string;
+  amount: number;
+  principalAmount?: number;
+  interestAmount?: number;
+  notes?: string;
+  syncToLedger?: boolean;
+  categoryId?: string;
+}): Promise<{ payment: LocalDebtPayment; updatedDebt: LocalDebt; conquered: boolean }> {
+  const debt = await db.debts.get(params.debtId);
+  if (!debt || debt.isDeleted) {
+    throw new Error('Debt not found or has been removed');
+  }
+
+  const now = new Date().toISOString();
+  const paymentId = crypto.randomUUID();
+  const payAmount = Math.max(0.01, params.amount);
+
+  // 1. Calculate new remaining balance
+  const principalPaid = params.principalAmount !== undefined ? params.principalAmount : payAmount;
+  const newBalance = Math.max(0, Number((debt.remainingBalance - principalPaid).toFixed(2)));
+  const conquered = newBalance === 0 && debt.status === 'ACTIVE';
+
+  // 2. Increment installments paid if applicable
+  const nextInstallmentsPaid = (debt.installmentsPaid ?? 0) + 1;
+
+  // 3. Create LocalDebtPayment record
+  const payment: LocalDebtPayment = {
+    id: paymentId,
+    debtId: debt.id,
+    userId: params.userId,
+    amount: payAmount,
+    principalAmount: principalPaid,
+    interestAmount: params.interestAmount ?? 0,
+    paymentDate: now,
+    notes: params.notes,
+    syncedToLedger: !!params.syncToLedger,
+    syncStatus: 'pending',
+    createdAt: now,
+  };
+
+  await db.debtPayments.put(payment);
+
+  // 4. Update the Debt entity
+  const updatedDebt: LocalDebt = {
+    ...debt,
+    remainingBalance: newBalance,
+    installmentsPaid: nextInstallmentsPaid,
+    status: newBalance <= 0 ? 'PAID_OFF' : 'ACTIVE',
+    syncStatus: 'pending',
+    updatedAt: now,
+  };
+
+  await db.debts.put(updatedDebt);
+
+  // 5. If requested, write an EXPENSE transaction to the main ledger
+  if (params.syncToLedger && params.categoryId) {
+    await db.transactions.put({
+      id: crypto.randomUUID(),
+      userId: params.userId,
+      categoryId: params.categoryId,
+      amount: payAmount,
+      type: 'EXPENSE',
+      date: now.split('T')[0],
+      description: `Debt payment: ${debt.name}`,
+      mindfulTag: 'NEED',
+      emotionalMood: 'CALM',
+      queueStatus: 'APPROVED',
+      syncStatus: 'pending',
+      isDeleted: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  // 6. Award EXP for debt payment
+  const expReward = Math.min(60, Math.max(15, Math.round(payAmount * 0.2)));
+  await awardUserExp(
+    params.userId,
+    expReward,
+    `Paid $${payAmount.toFixed(2)} towards ${debt.name}`,
+    'DEBT_PAYMENT'
+  );
+
+  // 7. If fully conquered, award celebratory bonus
+  if (conquered) {
+    await awardUserExp(params.userId, 100, `Fully paid off ${debt.name}! Zero debt achieved!`, 'DEBT_CONQUERED');
+    // Grant 1 free reward spinner ticket
+    const user = await db.users.get(params.userId);
+    if (user) {
+      await db.users.update(params.userId, {
+        spinnerTickets: (user.spinnerTickets || 0) + 1,
+      });
+    }
+  }
+
+  return { payment, updatedDebt, conquered };
+}
+
+/**
+ * Seed initial realistic demo debts if the user has none
+ */
+export async function seedDemoDebtsIfEmpty(userId: string): Promise<void> {
+  const existing = await db.debts.where('userId').equals(userId).toArray();
+  const activeCount = existing.filter((d) => !d.isDeleted).length;
+  if (activeCount > 0) return;
+
+  const now = new Date();
+  const formatFutureDate = (daysAhead: number) => {
+    const d = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+    return d.toISOString().split('T')[0];
+  };
+
+  const demoItems: Omit<LocalDebt, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus' | 'isDeleted'>[] = [
+    {
+      userId,
+      name: 'Sony WH-1000XM5 Headphones (Klarna)',
+      debtType: 'BNPL',
+      totalAmount: 399.0,
+      remainingBalance: 199.5,
+      interestRate: 0,
+      minimumPayment: 99.75,
+      counterpartyName: 'Klarna',
+      dueDate: formatFutureDate(5),
+      frequency: 'BI_WEEKLY',
+      installmentCount: 4,
+      installmentsPaid: 2,
+      notes: 'Pay in 4 installment plan. 2 payments left.',
+      status: 'ACTIVE',
+    },
+    {
+      userId,
+      name: 'Concert & Dinner Split with Maya',
+      debtType: 'IOU_OWED',
+      totalAmount: 85.0,
+      remainingBalance: 85.0,
+      interestRate: 0,
+      minimumPayment: 85.0,
+      counterpartyName: 'Maya Chen',
+      dueDate: formatFutureDate(3),
+      frequency: 'ONE_OFF',
+      notes: 'Owed for Billie Eilish tickets & ramen dinner',
+      status: 'ACTIVE',
+    },
+    {
+      userId,
+      name: 'Road Trip Gas & Airbnb (Owed to Me)',
+      debtType: 'IOU_RECEIVABLE',
+      totalAmount: 140.0,
+      remainingBalance: 70.0,
+      interestRate: 0,
+      minimumPayment: 70.0,
+      counterpartyName: 'Alex Johnson',
+      dueDate: formatFutureDate(12),
+      frequency: 'ONE_OFF',
+      notes: 'Alex paid half ($70), remaining $70 pending next Friday',
+      status: 'ACTIVE',
+    },
+    {
+      userId,
+      name: 'Chase Sapphire Preferred',
+      debtType: 'CREDIT_CARD',
+      totalAmount: 1650.0,
+      remainingBalance: 1240.0,
+      interestRate: 22.49,
+      minimumPayment: 65.0,
+      counterpartyName: 'Chase Bank',
+      dueDate: formatFutureDate(14),
+      frequency: 'MONTHLY',
+      notes: 'APR 22.49%. Prime candidate for avalanche payoff strategy.',
+      status: 'ACTIVE',
+    },
+  ];
+
+  for (const item of demoItems) {
+    await createLocalDebt(item);
+  }
+}
+
+/**
+ * Retrieve payment history for a specific debt, newest first
+ */
+export async function getLocalDebtPayments(debtId: string): Promise<LocalDebtPayment[]> {
+  const payments = await db.debtPayments.where('debtId').equals(debtId).toArray();
+  return payments.sort((a, b) => b.paymentDate.localeCompare(a.paymentDate));
 }
 
 

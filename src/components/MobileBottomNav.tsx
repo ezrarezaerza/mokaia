@@ -14,9 +14,14 @@ import {
   X,
   ChevronRight,
   Sparkles,
+  CreditCard,
 } from 'lucide-react';
 
-export type NavTab = 'ledger' | 'vault' | 'timeline' | 'cooling_off' | 'comfort_fund' | 'spinner';
+import { soundFx } from '../lib/soundFx';
+import { haptics } from '../lib/haptics';
+import { useTranslation } from '../context/LanguageContext';
+
+export type NavTab = 'ledger' | 'vault' | 'timeline' | 'cooling_off' | 'comfort_fund' | 'spinner' | 'debts';
 
 interface MobileBottomNavProps {
   activeTab: NavTab | string;
@@ -33,15 +38,18 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   coolingOffCount = 0,
   spinnerTickets = 0,
 }) => {
+  const { t, language } = useTranslation();
   const [isGuardrailsOpen, setIsGuardrailsOpen] = useState(false);
 
   const isGuardrailActive =
-    activeTab === 'cooling_off' || activeTab === 'comfort_fund' || activeTab === 'spinner';
+    activeTab === 'cooling_off' || activeTab === 'comfort_fund' || activeTab === 'spinner' || activeTab === 'debts';
 
   const totalGuardrailBadge =
     coolingOffCount > 0 ? coolingOffCount : spinnerTickets > 0 ? spinnerTickets : 0;
 
   const handleSelectGuardrail = (tab: NavTab) => {
+    soundFx.playTickSound();
+    haptics.selectionTick();
     onChangeTab(tab);
     setIsGuardrailsOpen(false);
   };
@@ -79,10 +87,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-white tracking-tight">
-                      Mindful Guardrails
+                      {language === 'id' ? 'Benteng Pengeluaran' : 'Mindful Guardrails'}
                     </h3>
                     <p className="text-[11px] text-slate-400">
-                      Behavioral impulse tools & rewards
+                      {language === 'id' ? 'Alat pengendali impuls & hadiah' : 'Behavioral impulse tools & rewards'}
                     </p>
                   </div>
                 </div>
@@ -114,15 +122,15 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                     </div>
                     <div>
                       <div className="font-semibold text-xs text-white flex items-center gap-2">
-                        <span>The Cooling-Off Queue</span>
+                        <span>{t('coolingOff.title')}</span>
                         {coolingOffCount > 0 && (
                           <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] animate-pulse">
-                            {coolingOffCount} Active
+                            {coolingOffCount} {language === 'id' ? 'Aktif' : 'Active'}
                           </span>
                         )}
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        24-48 hour holding pen for impulse desires
+                        {t('coolingOff.subtitle')}
                       </p>
                     </div>
                   </div>
@@ -144,9 +152,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                       <HeartHandshake className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="font-semibold text-xs text-white">The Comfort Fund</div>
+                      <div className="font-semibold text-xs text-white">{t('comfortFund.title')}</div>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        Protected micro-budget for stressful days
+                        {t('comfortFund.subtitle')}
                       </p>
                     </div>
                   </div>
@@ -169,15 +177,44 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                     </div>
                     <div>
                       <div className="font-semibold text-xs text-white flex items-center gap-2">
-                        <span>The Reward Spinner</span>
+                        <span>{t('spinner.title')}</span>
                         {spinnerTickets > 0 && (
                           <span className="px-1.5 py-0.5 rounded-full bg-orange-500 text-white font-black text-[10px]">
-                            {spinnerTickets} Spins
+                            {spinnerTickets} {language === 'id' ? 'Putaran' : 'Spins'}
                           </span>
                         )}
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        Spin for mindful treats and perks
+                        {t('spinner.subtitle')}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </button>
+
+                {/* 4. Debt & Liabilities Command Center */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectGuardrail('debts')}
+                  className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer active:scale-[0.98] ${
+                    activeTab === 'debts'
+                      ? 'bg-purple-500/15 border-purple-500/40 text-purple-200'
+                      : 'bg-slate-800/60 border-slate-700/50 text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-white flex items-center gap-2">
+                        <span>{t('debt.title')}</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-purple-500/30 text-purple-200 font-bold text-[9px] border border-purple-500/40">
+                          Awareness
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {t('debt.subtitle')}
                       </p>
                     </div>
                   </div>
@@ -199,7 +236,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* 1. Flow / Ledger */}
           <button
             type="button"
-            onClick={() => onChangeTab('ledger')}
+            onClick={() => {
+              haptics.selectionTick();
+              onChangeTab('ledger');
+            }}
             className={`relative flex flex-col items-center justify-center w-full min-h-[46px] py-1 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95 ${
               activeTab === 'ledger'
                 ? 'text-blue-400 font-bold'
@@ -207,7 +247,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             }`}
           >
             <LayoutDashboard className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5 tracking-tight leading-none">Flow</span>
+            <span className="text-[10px] mt-0.5 tracking-tight leading-none">{t('nav.dashboard')}</span>
             {activeTab === 'ledger' && (
               <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-blue-400 shadow-xs" />
             )}
@@ -216,7 +256,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* 2. Goals / Timeline */}
           <button
             type="button"
-            onClick={() => onChangeTab('timeline')}
+            onClick={() => {
+              haptics.selectionTick();
+              onChangeTab('timeline');
+            }}
             className={`relative flex flex-col items-center justify-center w-full min-h-[46px] py-1 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95 ${
               activeTab === 'timeline'
                 ? 'text-sky-400 font-bold'
@@ -224,7 +267,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             }`}
           >
             <Target className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5 tracking-tight leading-none">Goals</span>
+            <span className="text-[10px] mt-0.5 tracking-tight leading-none">{t('nav.timeline')}</span>
             {activeTab === 'timeline' && (
               <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-sky-400 shadow-xs" />
             )}
@@ -235,7 +278,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             <button
               id="mobile-center-log-fab"
               type="button"
-              onClick={onOpenCreate}
+              onClick={() => {
+                haptics.lightTap();
+                onOpenCreate();
+              }}
               aria-label="Log Expense"
               className="relative -mt-6 w-13 h-13 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 text-white shadow-xl shadow-blue-500/40 border-[3.5px] border-slate-900 flex items-center justify-center active:scale-90 hover:scale-105 transition-all cursor-pointer touch-manipulation group"
             >
@@ -243,14 +289,17 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               <Plus className="w-6 h-6 transition-transform group-hover:rotate-90 duration-200" />
             </button>
             <span className="text-[10px] mt-0.5 font-bold text-blue-400 tracking-tight leading-none">
-              Log
+              {t('nav.log')}
             </span>
           </div>
 
           {/* 4. Vault */}
           <button
             type="button"
-            onClick={() => onChangeTab('vault')}
+            onClick={() => {
+              haptics.selectionTick();
+              onChangeTab('vault');
+            }}
             className={`relative flex flex-col items-center justify-center w-full min-h-[46px] py-1 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95 ${
               activeTab === 'vault'
                 ? 'text-indigo-400 font-bold'
@@ -258,7 +307,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             }`}
           >
             <Package className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5 tracking-tight leading-none">Vault</span>
+            <span className="text-[10px] mt-0.5 tracking-tight leading-none">{t('nav.vault')}</span>
             {activeTab === 'vault' && (
               <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-indigo-400 shadow-xs" />
             )}
@@ -267,7 +316,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           {/* 5. Mindful Guardrails */}
           <button
             type="button"
-            onClick={() => setIsGuardrailsOpen(true)}
+            onClick={() => {
+              haptics.lightTap();
+              setIsGuardrailsOpen(true);
+            }}
             className={`relative flex flex-col items-center justify-center w-full min-h-[46px] py-1 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95 ${
               isGuardrailActive
                 ? 'text-cyan-400 font-bold'
@@ -282,7 +334,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 </span>
               )}
             </div>
-            <span className="text-[10px] mt-0.5 tracking-tight leading-none">Guardrails</span>
+            <span className="text-[10px] mt-0.5 tracking-tight leading-none">
+              {t('nav.guardrails')}
+            </span>
             {isGuardrailActive && (
               <span className="absolute bottom-0 w-3.5 h-0.5 rounded-full bg-cyan-400 shadow-xs" />
             )}

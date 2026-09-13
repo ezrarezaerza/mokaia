@@ -23,6 +23,7 @@ import {
 import { parseISO, getDay } from 'date-fns';
 import type { LocalTransaction, EmotionalMood } from '../../types';
 import { EMOTIONAL_MOOD_CONFIG } from '../../lib/db';
+import { useCurrency } from '../../context/CurrencyContext';
 
 interface EmotionalDeepDiveViewProps {
   transactions?: LocalTransaction[];
@@ -42,14 +43,12 @@ export const EmotionalDeepDiveView: React.FC<EmotionalDeepDiveViewProps> = ({
   onOpenMascotChat,
   mascotName = 'Mochi',
 }) => {
+  const { format: formatMoney } = useCurrency();
   const safeTransactions = Array.isArray(transactions) ? transactions : [];
 
   const formatCurrency = (val: number) => {
     if (isMasked) return '••••••';
-    return `${currency}${val.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    return formatMoney(val);
   };
 
   const activeExpenses = useMemo(() => {
@@ -244,7 +243,7 @@ export const EmotionalDeepDiveView: React.FC<EmotionalDeepDiveViewProps> = ({
                 fontSize={10}
                 tickLine={false}
                 axisLine={{ stroke: '#334155' }}
-                tickFormatter={(v) => (isMasked ? '••' : `$${v}`)}
+                tickFormatter={(v) => (isMasked ? '••' : formatMoney(v, { compact: true }))}
               />
               <Tooltip
                 content={({ active, payload }) => {

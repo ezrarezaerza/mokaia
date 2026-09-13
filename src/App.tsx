@@ -6,6 +6,8 @@ import { db, seedDefaultCategories, createLocalTransaction } from './lib/db';
 import { AuthService } from './lib/auth';
 import { syncEngine, type SyncEngineStatus } from './lib/syncEngine';
 import type { LocalUser, LocalTransaction } from './types';
+import { CurrencyProvider } from './context/CurrencyContext';
+import { LanguageProvider } from './context/LanguageContext';
 
 // Components
 import { DashboardHeader } from './components/DashboardHeader';
@@ -30,8 +32,16 @@ import { TimelineFunds } from './components/TimelineFunds';
 import { AccountabilityMascot } from './components/AccountabilityMascot';
 import { MilestoneShareModal } from './components/MilestoneShareModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
-import { checkAndUpdateStreak, setUserActiveTheme } from './lib/db';
-import type { LocalTimelineFund, LocalVaultItem, MascotEvaluationInput } from './types';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { DebtCommandCenter } from './components/DebtCommandCenter';
+import {
+  checkAndUpdateStreak,
+  setUserActiveTheme,
+  acknowledgeUserLevelCelebration,
+  seedDemoDebtsIfEmpty,
+} from './lib/db';
+import { seedIndonesianDemoData } from './lib/seedDemoData';
+import type { LocalTimelineFund, LocalVaultItem, MascotEvaluationInput, LocalDebt } from './types';
 import {
   Sparkles,
   Tag,
@@ -44,31 +54,70 @@ import {
   Target,
   Flame,
   ArrowRight,
+  CreditCard,
 } from 'lucide-react';
 
+// Helper to retrieve and initialize acknowledged celebrated level to prevent modal loops on reload
+function getStoredCelebratedLevel(userId?: string, currentLevel: number = 1, userRecordLevel?: number): number {
+  if (!userId || typeof window === 'undefined') return currentLevel;
+  try {
+    const stored = localStorage.getItem(`mokaia_celebrated_level_${userId}`);
+    if (stored !== null) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        return Math.max(parsed, userRecordLevel ?? 0);
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  // If userRecordLevel exists, prioritize it
+  if (userRecordLevel && userRecordLevel > 0) {
+    try {
+      localStorage.setItem(`mokaia_celebrated_level_${userId}`, String(userRecordLevel));
+    } catch {}
+    return userRecordLevel;
+  }
+
+  // If this is an existing user loaded for the first time with this fix,
+  // record their current level as already celebrated so it never loops on refresh!
+  try {
+    localStorage.setItem(`mokaia_celebrated_level_${userId}`, String(currentLevel));
+  } catch {}
+  return currentLevel;
+}
+
 export default function App() {
-  // Session & User
-  const [user, setUser] = useState<LocalUser | null>(null);
+  // Session & User - Synchronously read from offline cache to prevent flash of null user
+  const [user, setUser] = useState<LocalUser | null>(() => AuthService.getCachedSession().user);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // View Navigation (Phase 2, Phase 3, Phase 4)
-  const [activeTab, setActiveTab] = useState<'ledger' | 'cooling_off' | 'comfort_fund' | 'spinner' | 'wallet' | 'vault' | 'timeline'>('ledger');
+  // View Navigation (Phase 2, Phase 3, Phase 4, Phase 5)
+  const [activeTab, setActiveTab] = useState<'ledger' | 'cooling_off' | 'comfort_fund' | 'spinner' | 'wallet' | 'vault' | 'timeline' | 'debts'>('ledger');
   const [isCostPerUseModalOpen, setIsCostPerUseModalOpen] = useState(false);
 
-  // Phase 3 Modal States
+  // Phase 3 Modal States & Persistent Level-Up State
   const [isSpinnerModalOpen, setIsSpinnerModalOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+
+  // Initialize celebrated level tracking from persistent storage
+  const initialCelebratedLevel = user?.id
+    ? getStoredCelebratedLevel(user.id, user.level ?? 1, user.lastCelebratedLevel)
+    : 1;
+  const celebratedLevelRef = React.useRef<number>(initialCelebratedLevel);
+  const [celebratedLevel, setCelebratedLevel] = useState<number>(initialCelebratedLevel);
   const [isLevelUpModalOpen, setIsLevelUpModalOpen] = useState(false);
-  const [celebratedLevel, setCelebratedLevel] = useState<number>(1);
   const [streakNotice, setStreakNotice] = useState<string | null>(null);
 
   // Phase 4: Milestone Share Card Modal State
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [shareModalType, setShareModalType] = useState<'STREAK' | 'IMPULSE_RESISTED' | 'RANK_UP' | 'FUND_COMPLETED' | 'VAULT_ITEM'>('STREAK');
+  const [shareModalType, setShareModalType] = useState<'STREAK' | 'IMPULSE_RESISTED' | 'RANK_UP' | 'FUND_COMPLETED' | 'VAULT_ITEM' | 'DEBT_CONQUERED'>('STREAK');
   const [shareExtraData, setShareExtraData] = useState<{
     fund?: LocalTimelineFund;
     vaultItem?: LocalVaultItem;
+    debt?: LocalDebt;
     savedAmount?: number;
     streak?: number;
   }>({});
@@ -94,7 +143,9 @@ export default function App() {
     const session = AuthService.getCachedSession();
     if (session.user) {
       setUser(session.user);
-      seedDefaultCategories(session.user.id).then(() => {
+      seedDefaultCategories(session.user.id).then(async () => {
+        // Seed rich, localized Indonesian demo data (debts, vault, funds, transactions)
+        await seedIndonesianDemoData(session.user.id).catch(() => {});
         // Bi-Directional Hydration: Pull latest remote updates from Postgres
         syncEngine.sync().catch(() => {});
       });
@@ -106,6 +157,25 @@ export default function App() {
     const unsubscribe = syncEngine.subscribe((status) => {
       setSyncStatus(status);
     });
+
+    // PWA Launcher Shortcuts handling (?action=quick-add | queue | spinner)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const action = params.get('action');
+      if (action === 'quick-add') {
+        setIsQuickAddOpen(true);
+      } else if (action === 'queue') {
+        setActiveTab('cooling_off');
+      } else if (action === 'spinner') {
+        setActiveTab('spinner');
+      }
+
+      // Clean URL parameter without reloading to maintain clean address
+      if (action) {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    }
 
     return () => unsubscribe();
   }, []);
@@ -156,6 +226,21 @@ export default function App() {
   );
   const categories = rawCategories || [];
 
+  // Debts & Liabilities query (Phase 5)
+  const rawDebts = useLiveQuery(
+    async () => {
+      if (!user) return [];
+      const list = await db.debts
+        .where('userId')
+        .equals(user.id)
+        .toArray();
+      return (list || []).filter((d) => !d.isDeleted);
+    },
+    [user?.id],
+    []
+  );
+  const debts = rawDebts || [];
+
   // Reactive User Profile (reflects Comfort Fund unlock state, balance & allowance in Dexie)
   const liveUser = useLiveQuery(
     async () => {
@@ -189,21 +274,72 @@ export default function App() {
       .catch(() => {});
   }, [currentUser?.id]);
 
-  // Phase 3: Dynamic Level-Up Detection
-  const previousLevelRef = React.useRef<number>(currentUser?.level ?? 1);
+  // Keep celebratedLevelRef synchronized when user changes or liveUser loads from Dexie
   useEffect(() => {
-    if (currentUser?.level && currentUser.level > previousLevelRef.current) {
-      setCelebratedLevel(currentUser.level);
-      setIsLevelUpModalOpen(true);
-      previousLevelRef.current = currentUser.level;
+    if (!currentUser?.id) return;
+    const stored = getStoredCelebratedLevel(
+      currentUser.id,
+      currentUser.level ?? 1,
+      currentUser.lastCelebratedLevel
+    );
+    if (stored > celebratedLevelRef.current) {
+      celebratedLevelRef.current = stored;
+      setCelebratedLevel(stored);
     }
-  }, [currentUser?.level]);
+  }, [currentUser?.id, currentUser?.lastCelebratedLevel]);
+
+  // Phase 3: Dynamic Level-Up Detection (Triggers ONLY upon genuine upward level progression)
+  useEffect(() => {
+    if (!currentUser?.id || !currentUser?.level) return;
+
+    if (currentUser.level > celebratedLevelRef.current) {
+      const newLvl = currentUser.level;
+      celebratedLevelRef.current = newLvl;
+      setCelebratedLevel(newLvl);
+      setIsLevelUpModalOpen(true);
+      // Immediately acknowledge to persistent storage so subsequent reloads never repeat it
+      acknowledgeUserLevelCelebration(currentUser.id, newLvl);
+    }
+  }, [currentUser?.id, currentUser?.level]);
+
+  // Handlers for Level-Up Celebration Modal actions
+  const handleCloseCelebration = () => {
+    if (currentUser?.id) {
+      acknowledgeUserLevelCelebration(currentUser.id, celebratedLevel);
+    }
+    setIsLevelUpModalOpen(false);
+  };
+
+  const handleOpenThemesFromCelebration = () => {
+    if (currentUser?.id) {
+      acknowledgeUserLevelCelebration(currentUser.id, celebratedLevel);
+    }
+    setIsLevelUpModalOpen(false);
+    setIsThemeModalOpen(true);
+  };
+
+  const handleOpenSpinnerFromCelebration = () => {
+    if (currentUser?.id) {
+      acknowledgeUserLevelCelebration(currentUser.id, celebratedLevel);
+    }
+    setIsLevelUpModalOpen(false);
+    setActiveTab('spinner');
+  };
 
   // Handlers
   const handleAuthSuccess = (authenticatedUser: LocalUser) => {
     setUser(authenticatedUser);
+    const stored = getStoredCelebratedLevel(
+      authenticatedUser.id,
+      authenticatedUser.level ?? 1,
+      authenticatedUser.lastCelebratedLevel
+    );
+    celebratedLevelRef.current = stored;
+    setCelebratedLevel(stored);
+    setIsLevelUpModalOpen(false);
     setIsAuthModalOpen(false);
-    seedDefaultCategories(authenticatedUser.id).then(() => {
+    seedDefaultCategories(authenticatedUser.id).then(async () => {
+      await seedIndonesianDemoData(authenticatedUser.id).catch(() => {});
       syncEngine.sync().catch(() => {});
     });
   };
@@ -211,6 +347,8 @@ export default function App() {
   const handleLogout = async () => {
     await AuthService.logout();
     setUser(null);
+    celebratedLevelRef.current = 1;
+    setIsLevelUpModalOpen(false);
     setIsAuthModalOpen(true);
   };
 
@@ -232,47 +370,18 @@ export default function App() {
     setIsQuickAddOpen(true);
   };
 
-  // Seed demo data for quick evaluation
+  // Seed rich Indonesian demo data across all features
   const handleSeedDemoData = async () => {
-    if (!user || categories.length === 0) return;
-    const catFood = categories.find((c) => c.name.includes('Food') && !c.isDeleted) || categories[0];
-    const catTransit = categories.find((c) => c.name.includes('Transit') && !c.isDeleted) || categories[1] || categories[0];
-    const catIncome = categories.find((c) => (c.name.includes('Salary') || c.name.includes('Income')) && !c.isDeleted) || categories[0];
-
-    await createLocalTransaction({
-      userId: user.id,
-      categoryId: catIncome.id,
-      amount: 3500,
-      type: 'INCOME',
-      description: 'Bi-Weekly Direct Deposit',
-      mindfulTag: 'SAVING',
-    });
-
-    await createLocalTransaction({
-      userId: user.id,
-      categoryId: catFood.id,
-      amount: 24.5,
-      type: 'EXPENSE',
-      description: 'Matcha Latte & Vegan Pastry',
-      mindfulTag: 'WANT',
-      notes: 'Morning pick-me-up',
-    });
-
-    await createLocalTransaction({
-      userId: user.id,
-      categoryId: catTransit.id,
-      amount: 45.0,
-      type: 'EXPENSE',
-      description: 'Subway Pass Reload',
-      mindfulTag: 'NEED',
-    });
-
-    syncEngine.sync().catch(() => {});
+    if (!user) return;
+    await seedIndonesianDemoData(user.id, true);
+    await syncEngine.sync().catch(() => {});
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100 flex flex-col font-sans pb-[calc(max(1.5rem,env(safe-area-inset-bottom))+5rem)] sm:pb-24 selection:bg-blue-500/30 overflow-x-hidden">
-      {/* Offline Alert Banner */}
+    <LanguageProvider activeUserId={(currentUser || user)?.id}>
+      <CurrencyProvider activeUserId={(currentUser || user)?.id}>
+        <div className="min-h-screen bg-[#0F172A] text-slate-100 flex flex-col font-sans pb-[calc(max(1.5rem,env(safe-area-inset-bottom))+5rem)] sm:pb-24 selection:bg-blue-500/30 overflow-x-hidden">
+        {/* Offline Alert Banner */}
       <OfflineBanner
         isOffline={!syncStatus.isOnline}
         isSimulated={syncStatus.isSimulatedOffline}
@@ -285,6 +394,9 @@ export default function App() {
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onLogout={handleLogout}
       />
+
+      {/* PWA Non-Intrusive Install Banner */}
+      <PWAInstallBanner onOpenSettings={() => setIsSettingsModalOpen(true)} />
 
       {/* Dashboard Single Center Layout (Phase B - Option 2) */}
       <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-4 pb-28 sm:py-6">
@@ -427,6 +539,24 @@ export default function App() {
               <Ticket className="w-3.5 h-3.5" />
               <span>Spinner ({currentUser?.spinnerTickets ?? 0})</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('debts')}
+              className={`flex-1 min-w-[115px] py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'debts'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-950'
+                  : 'text-purple-300/80 hover:text-purple-200'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Debts</span>
+              {debts.filter((d) => d.status === 'ACTIVE').length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-purple-400/30 text-purple-200 font-mono text-[10px]">
+                  {debts.filter((d) => d.status === 'ACTIVE').length}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Mindful Financial Health Strip */}
@@ -507,6 +637,26 @@ export default function App() {
                 onLogComfortPurchase={() => {
                   setIsQuickAddOpen(true);
                 }}
+              />
+            </div>
+          )}
+
+          {activeTab === 'debts' && user && (
+            <div className="space-y-4">
+              <DebtCommandCenter
+                user={currentUser || user}
+                debts={debts}
+                categories={categories}
+                onRefreshDebts={async () => {
+                  // Dexie useLiveQuery automatically updates reactively
+                }}
+                onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+                onOpenShareCard={(debt) => {
+                  setShareModalType('DEBT_CONQUERED');
+                  setShareExtraData({ debt });
+                  setIsShareModalOpen(true);
+                }}
+                onOpenSpinner={() => setActiveTab('spinner')}
               />
             </div>
           )}
@@ -682,15 +832,9 @@ export default function App() {
       <LevelUpCelebrationModal
         isOpen={isLevelUpModalOpen}
         newLevel={celebratedLevel}
-        onClose={() => setIsLevelUpModalOpen(false)}
-        onOpenThemes={() => {
-          setIsLevelUpModalOpen(false);
-          setIsThemeModalOpen(true);
-        }}
-        onOpenSpinner={() => {
-          setIsLevelUpModalOpen(false);
-          setActiveTab('spinner');
-        }}
+        onClose={handleCloseCelebration}
+        onOpenThemes={handleOpenThemesFromCelebration}
+        onOpenSpinner={handleOpenSpinnerFromCelebration}
       />
 
       {/* Dedicated Settings & Cloud Sync Modal */}
@@ -723,6 +867,8 @@ export default function App() {
           extraData={shareExtraData}
         />
       )}
-    </div>
-  );
+      </div>
+    </CurrencyProvider>
+  </LanguageProvider>
+);
 }

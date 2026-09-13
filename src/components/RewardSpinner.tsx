@@ -198,7 +198,7 @@ export const RewardSpinner: React.FC<RewardSpinnerProps> = ({
             <h2 className="text-base font-semibold text-slate-100 flex items-center gap-1.5">
               The Reward Spinner
               <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">
-                Physics Wheel
+                Mindful Rewards
               </span>
             </h2>
             <p className="text-xs text-slate-400">

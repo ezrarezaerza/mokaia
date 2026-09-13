@@ -15,19 +15,24 @@ import {
   Check,
   X,
   AlertCircle,
+  CreditCard,
 } from 'lucide-react';
 import { toPng, toBlob } from 'html-to-image';
-import type { LocalUser, MilestoneShareCardData, LocalTimelineFund, LocalVaultItem } from '../types';
+import type { LocalUser, MilestoneShareCardData, LocalTimelineFund, LocalVaultItem, LocalDebt } from '../types';
+import { getDisplayImageUrl } from '../lib/blobHelper';
 import { getLevelFromExp, getRankForLevel } from '../lib/gamification';
+import { useCurrency } from '../context/CurrencyContext';
+import { useTranslation } from '../context/LanguageContext';
 
 interface MilestoneShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: LocalUser | null;
-  defaultType?: 'STREAK' | 'IMPULSE_RESISTED' | 'RANK_UP' | 'FUND_COMPLETED' | 'VAULT_ITEM';
+  defaultType?: 'STREAK' | 'IMPULSE_RESISTED' | 'RANK_UP' | 'FUND_COMPLETED' | 'VAULT_ITEM' | 'DEBT_CONQUERED';
   extraData?: {
     fund?: LocalTimelineFund;
     vaultItem?: LocalVaultItem;
+    debt?: LocalDebt;
     savedAmount?: number;
     streak?: number;
   };
@@ -40,8 +45,10 @@ export function MilestoneShareModal({
   defaultType = 'STREAK',
   extraData,
 }: MilestoneShareModalProps) {
+  const { format: formatMoney } = useCurrency();
+  const { formatDate } = useTranslation();
   const [cardType, setCardType] = useState<
-    'STREAK' | 'IMPULSE_RESISTED' | 'RANK_UP' | 'FUND_COMPLETED' | 'VAULT_ITEM'
+    'STREAK' | 'IMPULSE_RESISTED' | 'RANK_UP' | 'FUND_COMPLETED' | 'VAULT_ITEM' | 'DEBT_CONQUERED'
   >(defaultType);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [copiedNotification, setCopiedNotification] = useState<boolean>(false);
@@ -154,7 +161,7 @@ export function MilestoneShareModal({
                 <div>
                   <h3 className="text-sm sm:text-base font-black text-white">Milestone Share Cards</h3>
                   <p className="text-[11px] sm:text-xs text-slate-400">
-                    High-Resolution Visual Cards Powered by <code className="text-indigo-300">html-to-image</code>
+                    Beautiful shareable cards celebrating your financial milestones
                   </p>
                 </div>
               </div>
@@ -211,6 +218,21 @@ export function MilestoneShareModal({
             <span>Rank & Level</span>
           </button>
 
+          {extraData?.debt && (
+            <button
+              type="button"
+              onClick={() => setCardType('DEBT_CONQUERED')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                cardType === 'DEBT_CONQUERED'
+                  ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
+                  : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Debt Smashed</span>
+            </button>
+          )}
+
           {extraData?.fund && (
             <button
               type="button"
@@ -262,6 +284,8 @@ export function MilestoneShareModal({
                   ? 'linear-gradient(145deg, #022c22 0%, #064e3b 50%, #021a14 100%)'
                   : cardType === 'RANK_UP'
                   ? 'linear-gradient(145deg, #2e1065 0%, #3b0764 50%, #090214 100%)'
+                  : cardType === 'DEBT_CONQUERED'
+                  ? 'linear-gradient(145deg, #3b0764 0%, #581c87 50%, #1e1b4b 100%)'
                   : cardType === 'FUND_COMPLETED'
                   ? 'linear-gradient(145deg, #082f49 0%, #0c4a6e 50%, #031422 100%)'
                   : 'linear-gradient(145deg, #0f172a 0%, #1e1b4b 50%, #020617 100%)',
@@ -283,7 +307,7 @@ export function MilestoneShareModal({
                 </span>
               </div>
               <div className="px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] font-mono text-white/80">
-                {new Date().toLocaleDateString('en-US', {
+                {formatDate(new Date(), {
                   month: 'short',
                   day: 'numeric',
                   year: 'numeric',
@@ -354,6 +378,28 @@ export function MilestoneShareModal({
                 </>
               )}
 
+              {cardType === 'DEBT_CONQUERED' && extraData?.debt && (
+                <>
+                  <div className="w-20 h-20 mx-auto rounded-3xl bg-purple-500/20 border-2 border-purple-500/40 flex items-center justify-center text-4xl shadow-lg shadow-purple-500/20">
+                    ⚔️
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs font-mono uppercase tracking-widest text-purple-300">
+                      Liability Conquered • {formatMoney(0)} Balance
+                    </span>
+                    <h2 className="text-3xl font-black text-white tracking-tight">
+                      {extraData.debt.name}
+                    </h2>
+                    <p className="text-2xl font-mono font-black text-emerald-400">
+                      {formatMoney(extraData.debt.totalAmount)} Paid in Full
+                    </p>
+                    <p className="text-xs text-purple-200/80 max-w-xs mx-auto">
+                      Zero balance unlocked. Escaped future interest bleed and claimed mental peace!
+                    </p>
+                  </div>
+                </>
+              )}
+
               {cardType === 'FUND_COMPLETED' && extraData?.fund && (
                 <>
                   <div className="w-20 h-20 mx-auto rounded-3xl bg-sky-500/20 border-2 border-sky-500/40 flex items-center justify-center text-4xl shadow-lg shadow-sky-500/20">
@@ -367,7 +413,7 @@ export function MilestoneShareModal({
                       {extraData.fund.title}
                     </h2>
                     <p className="text-2xl font-mono font-black text-sky-400">
-                      ${extraData.fund.targetAmount.toFixed(2)} Fully Funded
+                      {formatMoney(extraData.fund.targetAmount)} Fully Funded
                     </p>
                     <p className="text-xs text-sky-200/80 max-w-xs mx-auto">
                       100% guilt-free spending milestone reached right on schedule!
@@ -380,7 +426,7 @@ export function MilestoneShareModal({
                 <>
                   <div className="relative w-24 h-24 mx-auto rounded-2xl overflow-hidden border-2 border-cyan-400/40 shadow-xl">
                     <img
-                      src={extraData.vaultItem.photoUrl}
+                      src={getDisplayImageUrl(extraData.vaultItem.photoUrl)}
                       alt={extraData.vaultItem.name}
                       className="w-full h-full object-cover"
                     />
@@ -397,7 +443,7 @@ export function MilestoneShareModal({
                         {extraData.vaultItem.currentUses} uses
                       </span>
                       <span className="text-base font-black text-cyan-400">
-                        ${extraData.vaultItem.costPerUse?.toFixed(2) ?? '0.00'}/use
+                        {formatMoney(extraData.vaultItem.costPerUse ?? 0)}/use
                       </span>
                     </div>
                   </div>

@@ -20,6 +20,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import type { LocalVaultItem, LocalUser } from '../types';
+import { getDisplayImageUrl } from '../lib/blobHelper';
 import {
   getUserVaultItems,
   createLocalVaultItem,
@@ -27,6 +28,7 @@ import {
   deleteLocalVaultItem,
   compressImageViaCanvas,
 } from '../lib/db';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface CollectionVaultProps {
   user: LocalUser | null;
@@ -36,6 +38,7 @@ interface CollectionVaultProps {
 export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps) {
   if (!user) return null;
 
+  const { format: formatMoney, symbol, config } = useCurrency();
   const [items, setItems] = useState<LocalVaultItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -240,7 +243,7 @@ export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps)
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
               <Package className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Vercel Blob • Visual Asset Vault</span>
+              <span>Photo Gallery • Valued Possessions</span>
             </div>
             <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
               The Collection Vault
@@ -271,7 +274,7 @@ export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps)
           </div>
           <div className="p-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
             <span className="text-[11px] font-mono uppercase text-slate-400">Vault Valuation</span>
-            <p className="text-lg font-black text-indigo-300">${totalVaultValue.toFixed(2)}</p>
+            <p className="text-lg font-black text-indigo-300">{formatMoney(totalVaultValue)}</p>
           </div>
           <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
             <span className="text-[11px] font-mono uppercase text-slate-400">Total Uses Logged</span>
@@ -358,7 +361,7 @@ export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps)
                 {/* Image Container with Cloud/Local Badge */}
                 <div className="relative h-44 w-full bg-slate-950 overflow-hidden">
                   <img
-                    src={item.photoUrl}
+                    src={getDisplayImageUrl(item.photoUrl)}
                     alt={item.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
@@ -385,7 +388,7 @@ export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps)
                           className="px-2 py-0.5 rounded-full bg-cyan-500/20 backdrop-blur-md border border-cyan-500/40 text-[10px] font-mono text-cyan-300 flex items-center gap-1"
                         >
                           <Cloud className="w-2.5 h-2.5" />
-                          <span>Blob CDN</span>
+                          <span>Cloud Backed</span>
                         </span>
                       )}
 
@@ -406,13 +409,13 @@ export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps)
                         {item.name}
                       </h4>
                       <p className="text-[11px] font-mono text-slate-300">
-                        Initial: ${item.purchasePrice.toFixed(2)}
+                        Initial: {formatMoney(item.purchasePrice)}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
                       <span className="text-[10px] font-mono text-cyan-300 block">Cost / Use</span>
                       <span className="text-base font-black text-cyan-400 font-mono">
-                        ${costPerUse.toFixed(2)}
+                        {formatMoney(costPerUse)}
                       </span>
                     </div>
                   </div>
@@ -510,7 +513,7 @@ export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps)
                   </div>
                   <div>
                     <h3 className="text-sm sm:text-base font-black text-white">Add Item to Vault</h3>
-                    <p className="text-[11px] sm:text-xs text-slate-400">Client-Side Canvas Compression & Blob Upload</p>
+                    <p className="text-[11px] sm:text-xs text-slate-400">Track cherished items and watch your cost-per-use decrease</p>
                   </div>
                 </div>
                 <button
@@ -535,7 +538,7 @@ export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps)
                   {/* Photo Upload with Drag & Drop */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-mono uppercase text-slate-300">
-                      Item Photo (Compressed Locally) *
+                      Item Photo *
                     </label>
                     <div
                       onDragOver={(e) => e.preventDefault()}
@@ -558,7 +561,7 @@ export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps)
                       {isCompressing ? (
                         <div className="flex flex-col items-center gap-2 text-indigo-300 text-xs">
                           <div className="w-6 h-6 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
-                          <span>Compressing image on canvas...</span>
+                          <span>Optimizing photo...</span>
                         </div>
                       ) : previewImage ? (
                         <div className="relative w-full h-36 rounded-xl overflow-hidden group">
@@ -578,7 +581,7 @@ export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps)
                             Click to select or drag & drop photo
                           </p>
                           <p className="text-[10px] text-slate-400">
-                            Auto-compressed client-side for zero-latency offline storage
+                            Optimized automatically for quick offline access and cloud backup
                           </p>
                         </div>
                       )}
@@ -603,13 +606,13 @@ export function CollectionVault({ user, onOpenShareCard }: CollectionVaultProps)
 
                     <div className="space-y-1">
                       <label className="text-xs font-mono uppercase text-slate-300">
-                        Purchase Price ($) *
+                        Purchase Price ({symbol}) *
                       </label>
                       <input
                         type="number"
-                        step="0.01"
+                        step={config.decimals === 0 ? '1000' : '0.01'}
                         required
-                        placeholder="399.99"
+                        placeholder={config.decimals === 0 ? '500000' : '399.99'}
                         value={purchasePrice}
                         onChange={(e) => setPurchasePrice(e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white focus:outline-hidden focus:border-indigo-500 font-mono"

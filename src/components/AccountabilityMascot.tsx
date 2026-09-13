@@ -14,10 +14,12 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import type { LocalUser, MascotEvaluationInput } from '../types';
+import { getDisplayImageUrl } from '../lib/blobHelper';
 import { evaluateMascotState, DEFAULT_MASCOT_PRESETS } from '../lib/mascot';
 import { updateUserMascot, compressImageViaCanvas } from '../lib/db';
 import { soundFx } from '../lib/soundFx';
 import { haptics } from '../lib/haptics';
+import { useTranslation } from '../context/LanguageContext';
 import { MascotChatModal } from './MascotChatModal';
 
 interface AccountabilityMascotProps {
@@ -56,13 +58,15 @@ export function AccountabilityMascot({
   }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t, language } = useTranslation();
 
-  // Evaluate real-time psychological status with user personality
+  // Evaluate real-time psychological status with user personality and active language
   const mascotName = user.mascotName || 'Mochi';
   const mascotStatus = evaluateMascotState(
     mascotName,
     metrics,
-    user.mascotPersonality || 'zen'
+    user.mascotPersonality || 'zen',
+    language
   );
 
   const handleSaveCustomization = async (e: React.FormEvent) => {
@@ -173,7 +177,7 @@ export function AccountabilityMascot({
           >
             {user.mascotAvatarUrl ? (
               <img
-                src={user.mascotAvatarUrl}
+                src={getDisplayImageUrl(user.mascotAvatarUrl)}
                 alt={mascotName}
                 className="w-full h-full object-cover"
               />
@@ -373,7 +377,7 @@ export function AccountabilityMascot({
                     >
                       {avatarPreview ? (
                         <img
-                          src={avatarPreview}
+                          src={getDisplayImageUrl(avatarPreview)}
                           alt="Avatar Preview"
                           className="w-full h-full object-cover"
                         />

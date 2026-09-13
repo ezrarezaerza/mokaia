@@ -26,6 +26,7 @@ import {
 } from 'date-fns';
 import { Flame, TrendingUp, Calendar, ShieldCheck, AlertCircle, ArrowUpRight } from 'lucide-react';
 import type { LocalTransaction } from '../../types';
+import { useCurrency } from '../../context/CurrencyContext';
 
 interface CumulativeBurnRateChartProps {
   transactions?: LocalTransaction[];
@@ -43,15 +44,13 @@ export const CumulativeBurnRateChart: React.FC<CumulativeBurnRateChartProps> = (
   isMasked = false,
 }) => {
   const [timeRange, setTimeRange] = useState<TimeRange>('THIS_MONTH');
+  const { format: formatMoney } = useCurrency();
 
   const safeTransactions = Array.isArray(transactions) ? transactions : [];
 
   const formatCurrency = (val: number) => {
     if (isMasked) return '••••••';
-    return `${currency}${val.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    return formatMoney(val);
   };
 
   const chartData = useMemo(() => {
@@ -288,7 +287,7 @@ export const CumulativeBurnRateChart: React.FC<CumulativeBurnRateChartProps> = (
               fontSize={11}
               tickLine={false}
               axisLine={{ stroke: '#334155' }}
-              tickFormatter={(v) => (isMasked ? '••' : `$${v}`)}
+              tickFormatter={(v) => (isMasked ? '••' : formatMoney(v, { compact: true }))}
             />
 
             <Tooltip

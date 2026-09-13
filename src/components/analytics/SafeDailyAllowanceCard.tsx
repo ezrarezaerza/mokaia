@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { Sparkles, Compass, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { isSameDay, parseISO, endOfMonth, differenceInDays } from 'date-fns';
 import type { LocalTransaction } from '../../types';
+import { useCurrency } from '../../context/CurrencyContext';
 
 interface SafeDailyAllowanceCardProps {
   transactions?: LocalTransaction[];
@@ -49,12 +50,11 @@ export const SafeDailyAllowanceCard: React.FC<SafeDailyAllowanceCardProps> = ({
   const todayRemaining = Math.max(0, safeDailyBudget - todaySpent);
   const percentageUsed = safeDailyBudget > 0 ? Math.min(100, (todaySpent / safeDailyBudget) * 100) : 100;
 
+  const { format: formatMoney } = useCurrency();
+
   const formatCurrency = (val: number) => {
     if (isMasked) return '••••••';
-    return `${currency}${val.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    return formatMoney(val);
   };
 
   const isOverToday = todaySpent > safeDailyBudget && safeDailyBudget > 0;

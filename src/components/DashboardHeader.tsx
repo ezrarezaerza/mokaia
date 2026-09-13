@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import type { LocalUser } from '../types';
+import { useTranslation } from '../context/LanguageContext';
 
 interface DashboardHeaderProps {
   user: LocalUser | null;
@@ -19,13 +20,15 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onOpenSettings,
   onLogout,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <header className="sticky top-0 z-30 w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
         {/* Brand Identity: Prominent, Clean, No @demo subtext */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-lg shadow-indigo-950/50">
-            <span className="font-black text-base sm:text-lg tracking-tight">$</span>
+            <span className="font-black text-base sm:text-lg tracking-tight">M</span>
           </div>
           <div>
             <span className="font-black text-xl sm:text-2xl text-white tracking-tight leading-none block">
@@ -47,7 +50,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             title="Open Settings & Cloud Sync"
           >
             <Settings className="w-4 h-4 text-indigo-400" />
-            <span>Settings</span>
+            <span>{t('nav.settings')}</span>
           </button>
 
           {/* Direct Sign Out Action */}

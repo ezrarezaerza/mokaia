@@ -20,6 +20,7 @@ import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { deleteLocalTransaction } from '../lib/db';
 import { syncEngine } from '../lib/syncEngine';
 import type { LocalCategory, LocalTransaction, TransactionType, MindfulTag } from '../types';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface TransactionListProps {
   transactions: LocalTransaction[];
@@ -34,6 +35,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
   categories = [],
   onEditTransaction,
 }) => {
+  const { format: formatMoney } = useCurrency();
   const [filterType, setFilterType] = useState<'ALL' | TransactionType>('ALL');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
   const [selectedMindfulFilter, setSelectedMindfulFilter] = useState<'ALL' | MindfulTag>('ALL');
@@ -537,7 +539,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                         )}
                         {tx.costPerUse && (
                           <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 whitespace-nowrap">
-                            ~${tx.costPerUse.toFixed(2)}/use
+                            ~{formatMoney(tx.costPerUse)}/use
                           </span>
                         )}
                         {tx.queueStatus === 'APPROVED' && (
@@ -579,7 +581,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({
                           isExpense ? 'text-slate-100' : 'text-emerald-400'
                         }`}
                       >
-                        {isExpense ? '-' : '+'}${tx.amount.toFixed(2)}
+                        {isExpense ? '-' : '+'}{formatMoney(tx.amount)}
                       </div>
                     </div>
 

@@ -105,7 +105,7 @@ export const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = (
                       +1 Free Spinner Ticket
                     </h4>
                     <p className="text-[11px] text-slate-400">
-                      Use your spin in The Reward Spinner for guilt-free prizes.
+                      Added to your balance. Spin now or save it for later anytime!
                     </p>
                   </div>
                 </div>
@@ -163,7 +163,7 @@ export const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = (
                 onClick={onClose}
                 className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-xl transition cursor-pointer"
               >
-                Continue Saving
+                Keep Ticket & Continue Saving
               </button>
             </div>
           </motion.div>

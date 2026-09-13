@@ -27,6 +27,7 @@ import {
 import { updateUserMascotPersonality } from '../lib/db';
 import { soundFx } from '../lib/soundFx';
 import { haptics } from '../lib/haptics';
+import { useTranslation } from '../context/LanguageContext';
 
 interface MascotChatModalProps {
   isOpen: boolean;
@@ -60,9 +61,10 @@ export const MascotChatModal: React.FC<MascotChatModalProps> = ({
     }
   }, [user?.mascotPersonality]);
 
+  const { t, language } = useTranslation();
   const mascotName = user?.mascotName || 'Mochi';
-  const mascotStatus = evaluateMascotState(mascotName, metrics, selectedPersonality);
-  const dialogues = getMascotDialogues(mascotName, selectedPersonality, metrics);
+  const mascotStatus = evaluateMascotState(mascotName, metrics, selectedPersonality, language);
+  const dialogues = getMascotDialogues(mascotName, selectedPersonality, metrics, language);
 
   // Set initial speech when modal opens
   useEffect(() => {

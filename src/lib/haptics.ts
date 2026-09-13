@@ -80,6 +80,21 @@ class HapticsManager {
   public shieldHaptic(): void {
     this.trigger([20, 35, 20]);
   }
+
+  /**
+   * Mindful Friction Vibration: distinctive warning pulse when selecting 'WANT'
+   * or entering large non-essential amounts, encouraging a thoughtful pause
+   */
+  public mindfulFriction(): void {
+    this.trigger([35, 60, 25]);
+  }
+
+  /**
+   * Quick tactile tick for category / tag selection
+   */
+  public selectionTick(): void {
+    this.trigger(12);
+  }
 }
 
 export const haptics = new HapticsManager();

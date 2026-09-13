@@ -19,7 +19,6 @@ import {
   Smile,
   HeartHandshake,
   Lightbulb,
-  ShieldCheck,
 } from 'lucide-react';
 import {
   startOfMonth,
@@ -44,7 +43,8 @@ import {
 import { CumulativeBurnRateChart } from './analytics/CumulativeBurnRateChart';
 import { SafeDailyAllowanceCard } from './analytics/SafeDailyAllowanceCard';
 import { EmotionalDeepDiveView } from './analytics/EmotionalDeepDiveView';
-import { GamifiedRestraintROIView } from './analytics/GamifiedRestraintROIView';
+import { useCurrency } from '../context/CurrencyContext';
+import { useTranslation } from '../context/LanguageContext';
 
 interface MetricsOverviewProps {
   userId: string;
@@ -71,8 +71,10 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
   onOpenSpinner,
   onOpenMascotChat,
 }) => {
+  const { format: formatMoney, symbol } = useCurrency();
+  const { t, language } = useTranslation();
   const [showFullBreakdown, setShowFullBreakdown] = useState(false);
-  const [activeTab, setActiveTab] = useState<'BURN_RATE' | 'EMOTIONAL' | 'RESTRAINT_ROI' | 'CATEGORIES'>('BURN_RATE');
+  const [activeTab, setActiveTab] = useState<'BURN_RATE' | 'EMOTIONAL' | 'CATEGORIES'>('BURN_RATE');
   const [isBalanceMasked, setIsBalanceMasked] = useState(false);
   const [emotionalSummary, setEmotionalSummary] = useState<EmotionalSpendingSummary | null>(null);
 
@@ -247,11 +249,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
 
   const formatCurrency = (val: number) => {
     if (isBalanceMasked) return '••••••';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(val);
+    return formatMoney(val);
   };
 
   const netFlow = totalIncome - totalExpenses;
@@ -279,7 +277,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
               <Wallet className="w-4 h-4" />
             </div>
             <p className="text-slate-300 text-xs font-mono uppercase tracking-wider font-bold">
-              Available Balance
+              {t('dashboard.balance')}
             </p>
           </div>
 
@@ -302,7 +300,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
             {/* Active Ledger Status Badge */}
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/80 text-[10px] font-mono text-slate-300 shadow-xs">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Active Ledger</span>
+              <span>{t('dashboard.activeLedger')}</span>
             </div>
           </div>
         </div>
@@ -319,9 +317,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
               }`}
             />
             <span>
-              {isNetPositive
-                ? 'Healthy cash flow surplus'
-                : 'Deficit detected — review outflows'}
+              {isNetPositive ? t('dashboard.healthySurplus') : t('dashboard.deficitDetected')}
             </span>
           </p>
         </div>
@@ -335,14 +331,14 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
                 <ArrowDownLeft className="w-3.5 h-3.5" />
               </div>
               <span className="text-[10px] sm:text-[11px] text-slate-400 uppercase font-mono tracking-wider font-semibold">
-                Total Inflow
+                {t('dashboard.income')}
               </span>
             </div>
             <p className="text-base sm:text-lg font-bold text-slate-100 font-mono">
               {formatCurrency(totalIncome)}
             </p>
             <span className="text-[10px] text-emerald-400/80 font-medium mt-0.5 block">
-              Income & Deposits
+              {t('dashboard.incomeSubtitle')}
             </span>
           </div>
 
@@ -353,14 +349,14 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </div>
               <span className="text-[10px] sm:text-[11px] text-slate-400 uppercase font-mono tracking-wider font-semibold">
-                Total Outflow
+                {t('dashboard.expense')}
               </span>
             </div>
             <p className="text-base sm:text-lg font-bold text-slate-100 font-mono">
               {formatCurrency(totalExpenses)}
             </p>
             <span className="text-[10px] text-rose-400/80 font-medium mt-0.5 block">
-              Expenses & Purchases
+              {t('dashboard.expenseSubtitle')}
             </span>
           </div>
 
@@ -371,15 +367,15 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
                 <Flame className="w-3.5 h-3.5" />
               </div>
               <span className="text-[10px] sm:text-[11px] text-slate-400 uppercase font-mono tracking-wider font-semibold">
-                Daily Burn
+                {t('dashboard.dailyBurn')}
               </span>
             </div>
             <p className="text-base sm:text-lg font-bold text-slate-100 font-mono">
               {formatCurrency(burnRateStats.dailyBurnRate)}
-              <span className="text-[10px] font-normal text-slate-400 font-sans ml-0.5">/d</span>
+              <span className="text-[10px] font-normal text-slate-400 font-sans ml-0.5">/{language === 'id' ? 'hr' : 'd'}</span>
             </p>
             <span className="text-[10px] text-amber-400/80 font-medium mt-0.5 block">
-              Monthly Pace
+              {t('dashboard.monthlyPace')}
             </span>
           </div>
 
@@ -400,7 +396,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
                 )}
               </div>
               <span className="text-[10px] sm:text-[11px] text-slate-400 uppercase font-mono tracking-wider font-semibold">
-                Net Flow
+                {t('dashboard.netCashFlow')}
               </span>
             </div>
             <p
@@ -416,7 +412,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
                 isNetPositive ? 'text-emerald-400/80' : 'text-rose-400/80'
               }`}
             >
-              {isNetPositive ? 'Net Surplus' : 'Net Deficit'}
+              {isNetPositive ? t('dashboard.netSurplus') : t('dashboard.netDeficit')}
             </span>
           </div>
         </div>
@@ -430,7 +426,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
               <Activity className="w-4 h-4" />
             </div>
             <span className="text-xs font-mono uppercase tracking-wider font-bold text-slate-200">
-              Spending Velocity & Insights
+              {language === 'id' ? 'Kecepatan & Wawasan Belanja' : 'Spending Velocity & Insights'}
             </span>
           </div>
 
@@ -446,7 +442,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
               }`}
             >
               <Flame className="w-3.5 h-3.5 text-orange-400" />
-              <span>Burn & Pacing</span>
+              <span>{language === 'id' ? 'Bakar & Ritme' : 'Burn & Pacing'}</span>
             </button>
             <button
               type="button"
@@ -458,19 +454,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
               }`}
             >
               <Smile className="w-3.5 h-3.5 text-pink-400" />
-              <span>Emotional Deep Dive</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('RESTRAINT_ROI')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
-                activeTab === 'RESTRAINT_ROI'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Restraint ROI</span>
+              <span>{language === 'id' ? 'Analisis Emosional' : 'Emotional Deep Dive'}</span>
             </button>
             <button
               type="button"
@@ -482,7 +466,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
               }`}
             >
               <PieChart className="w-3.5 h-3.5 text-blue-400" />
-              <span>Lifestyle Tags ({categoryBreakdown.length})</span>
+              <span>{language === 'id' ? 'Tag Gaya Hidup' : 'Lifestyle Tags'} ({categoryBreakdown.length})</span>
             </button>
           </div>
         </div>
@@ -493,7 +477,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
             <SafeDailyAllowanceCard
               transactions={activeTxs}
               monthlyTargetBudget={monthlyBudget}
-              currency="$"
+              currency={symbol}
               isMasked={isBalanceMasked}
               onOpenQuickAdd={onOpenQuickAdd}
             />
@@ -502,7 +486,7 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
             <CumulativeBurnRateChart
               transactions={activeTxs}
               monthlyBudget={monthlyBudget}
-              currency="$"
+              currency={symbol}
               isMasked={isBalanceMasked}
             />
 
@@ -585,21 +569,10 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({
           <div className="mt-4">
             <EmotionalDeepDiveView
               transactions={activeTxs}
-              currency="$"
+              currency={symbol}
               isMasked={isBalanceMasked}
               mascotName={mascotName}
               onOpenMascotChat={onOpenMascotChat}
-            />
-          </div>
-        ) : activeTab === 'RESTRAINT_ROI' ? (
-          /* Phase 3.3: Gamified Restraint ROI & Long-Term Trajectories */
-          <div className="mt-4">
-            <GamifiedRestraintROIView
-              transactions={activeTxs}
-              currency="$"
-              isMasked={isBalanceMasked}
-              spinnerTickets={spinnerTickets}
-              onOpenSpinner={onOpenSpinner}
             />
           </div>
         ) : (

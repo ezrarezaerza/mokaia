@@ -22,6 +22,7 @@ import { getExpProgress, getRankForLevel, EXP_RULES, AVAILABLE_THEMES } from '..
 import { getRecentExpEvents } from '../lib/db';
 import { soundFx } from '../lib/soundFx';
 import { haptics } from '../lib/haptics';
+import { useTranslation } from '../context/LanguageContext';
 
 interface ExpJourneyModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export const ExpJourneyModal: React.FC<ExpJourneyModalProps> = ({
   const [events, setEvents] = useState<LocalExpEvent[]>([]);
   const [activeTab, setActiveTab] = useState<'AUDIT' | 'HOW_TO' | 'RANKS'>('AUDIT');
   const [loading, setLoading] = useState(true);
+  const { formatDateTime, language } = useTranslation();
 
   useEffect(() => {
     if (isOpen && user?.id) {
@@ -66,14 +68,9 @@ export const ExpJourneyModal: React.FC<ExpJourneyModalProps> = ({
   const formatEventTime = (isoString: string) => {
     try {
       const d = new Date(isoString);
-      return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-      }).format(d);
+      return formatDateTime(d);
     } catch {
-      return 'Recent';
+      return language === 'id' ? 'Baru saja' : 'Recent';
     }
   };
 
@@ -212,7 +209,7 @@ export const ExpJourneyModal: React.FC<ExpJourneyModalProps> = ({
               }`}
             >
               <Clock className="w-3.5 h-3.5 text-indigo-400" />
-              <span>EXP Audit Log</span>
+              <span>EXP History</span>
               {events.length > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-slate-800 text-slate-300">
                   {events.length}
@@ -259,13 +256,13 @@ export const ExpJourneyModal: React.FC<ExpJourneyModalProps> = ({
             {activeTab === 'AUDIT' && (
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between text-[11px] font-mono uppercase text-slate-400 font-semibold px-1">
-                  <span>Recent Behavioral Events</span>
+                  <span>Recent Achievements</span>
                   <span>EXP Points</span>
                 </div>
 
                 {loading ? (
                   <div className="py-8 text-center text-xs text-slate-400 animate-pulse">
-                    Loading your EXP audit history...
+                    Loading your EXP history...
                   </div>
                 ) : events.length === 0 ? (
                   <div className="py-8 text-center text-xs text-slate-400">
@@ -304,7 +301,7 @@ export const ExpJourneyModal: React.FC<ExpJourneyModalProps> = ({
             {activeTab === 'HOW_TO' && (
               <div className="space-y-3">
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Mokaia uses an <strong>Anti-Cheese Virtual Economy</strong>. You earn EXP exclusively by practicing mindful spending, resisting impulses, and maintaining daily awareness.
+                  Mokaia rewards authentic financial mindfulness. You earn EXP naturally by reflecting on purchases, pausing on impulses, and staying consistent.
                 </p>
 
                 <div className="grid grid-cols-1 gap-2.5">

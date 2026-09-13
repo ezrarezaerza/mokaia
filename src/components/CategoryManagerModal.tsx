@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Plus, Edit2, Trash2, Check, Tag } from 'lucide-react';
 import { createLocalCategory, updateLocalCategory, deleteLocalCategory } from '../lib/db';
 import type { LocalCategory } from '../types';
+import { useTranslation } from '../context/LanguageContext';
 
 interface CategoryManagerModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
   userId,
   categories = [],
 }) => {
+  const { language } = useTranslation();
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('🏷️');
@@ -63,7 +65,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError('Category name is required.');
+      setError(language === 'id' ? 'Nama kategori wajib diisi.' : 'Category name is required.');
       return;
     }
 
@@ -84,12 +86,15 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
       }
       resetForm();
     } catch (err: any) {
-      setError(err.message || 'Failed to save category');
+      setError(err.message || (language === 'id' ? 'Gagal menyimpan kategori' : 'Failed to save category'));
     }
   };
 
   const handleDelete = async (id: string, isCustom: boolean) => {
-    if (!confirm('Are you sure you want to delete this lifestyle tag? It will be removed across your devices.')) {
+    const confirmMsg = language === 'id'
+      ? 'Apakah Anda yakin ingin menghapus tag gaya hidup ini? Tag ini akan dihapus di semua perangkat Anda.'
+      : 'Are you sure you want to delete this lifestyle tag? It will be removed across your devices.';
+    if (!confirm(confirmMsg)) {
       return;
     }
     await deleteLocalCategory(id);
@@ -130,10 +135,10 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                    Custom Lifestyle Tags
+                    {language === 'id' ? 'Tag Gaya Hidup Kustom' : 'Custom Lifestyle Tags'}
                   </h3>
                   <p className="text-[11px] sm:text-xs text-slate-400">
-                    Emoji-Driven Spending Habit Markers
+                    {language === 'id' ? 'Penanda Kebiasaan Belanja Berbasis Emoji' : 'Emoji-Driven Spending Habit Markers'}
                   </p>
                 </div>
               </div>
@@ -154,14 +159,16 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                 <form onSubmit={handleSave} className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-3.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white">
-                      {editingCatId ? 'Edit Lifestyle Tag' : 'Create Custom Lifestyle Tag'}
+                      {editingCatId
+                        ? (language === 'id' ? 'Edit Tag Gaya Hidup' : 'Edit Lifestyle Tag')
+                        : (language === 'id' ? 'Buat Tag Gaya Hidup Kustom' : 'Create Custom Lifestyle Tag')}
                     </span>
                     <button
                       type="button"
                       onClick={resetForm}
                       className="text-[11px] text-slate-400 hover:text-white cursor-pointer"
                     >
-                      Cancel
+                      {language === 'id' ? 'Batal' : 'Cancel'}
                     </button>
                   </div>
 
@@ -173,13 +180,13 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                      Tag Name
+                      {language === 'id' ? 'Nama Tag' : 'Tag Name'}
                     </label>
                     <input
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Specialty Coffee, Thrift Stores"
+                      placeholder={language === 'id' ? 'cth. Kopi Spesialti, Toko Barang Bekas' : 'e.g. Specialty Coffee, Thrift Stores'}
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                       maxLength={30}
                     />
@@ -187,7 +194,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                      Choose Icon Emoji
+                      {language === 'id' ? 'Pilih Ikon Emoji' : 'Choose Icon Emoji'}
                     </label>
                     <div className="flex items-center gap-1.5 flex-wrap bg-slate-900/60 p-2 rounded-xl border border-slate-700/40">
                       {EMOJI_PRESETS.map((em) => (
@@ -209,7 +216,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                      Badge Accent Color
+                      {language === 'id' ? 'Warna Aksen Lencana' : 'Badge Accent Color'}
                     </label>
                     <div className="flex items-center gap-2 flex-wrap bg-slate-900/60 p-2 rounded-xl border border-slate-700/40">
                       {COLOR_PRESETS.map((c) => (
@@ -234,13 +241,15 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                       onClick={resetForm}
                       className="px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white cursor-pointer"
                     >
-                      Cancel
+                      {language === 'id' ? 'Batal' : 'Cancel'}
                     </button>
                     <button
                       type="submit"
                       className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition cursor-pointer"
                     >
-                      {editingCatId ? 'Update Tag' : 'Save Tag'}
+                      {editingCatId
+                        ? (language === 'id' ? 'Perbarui Tag' : 'Update Tag')
+                        : (language === 'id' ? 'Simpan Tag' : 'Save Tag')}
                     </button>
                   </div>
                 </form>
@@ -249,8 +258,8 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
               {/* Tag List */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-                  <span>Active Tags ({activeCategories.length})</span>
-                  <span className="text-[10px] text-slate-500">Synced to Local DB</span>
+                  <span>{language === 'id' ? 'Tag Aktif' : 'Active Tags'} ({activeCategories.length})</span>
+                  <span className="text-[10px] text-slate-500">{language === 'id' ? 'Tersimpan di Perangkat' : 'Saved on Device'}</span>
                 </div>
 
                 <div className="space-y-1.5">
@@ -271,7 +280,9 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                             {cat.name}
                           </span>
                           <span className="text-[10px] text-slate-500 font-mono">
-                            {cat.isCustom ? 'Custom tag' : 'Preset default'}
+                            {cat.isCustom
+                              ? (language === 'id' ? 'Tag kustom' : 'Custom tag')
+                              : (language === 'id' ? 'Bawaan standar' : 'Preset default')}
                           </span>
                         </div>
                       </div>
@@ -281,7 +292,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                           type="button"
                           onClick={() => handleStartEdit(cat)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer"
-                          title="Edit Lifestyle Tag"
+                          title={language === 'id' ? 'Edit Tag Gaya Hidup' : 'Edit Lifestyle Tag'}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -289,7 +300,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                           type="button"
                           onClick={() => handleDelete(cat.id, cat.isCustom)}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                          title="Delete Lifestyle Tag"
+                          title={language === 'id' ? 'Hapus Tag Gaya Hidup' : 'Delete Lifestyle Tag'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -312,7 +323,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                   className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Create New Lifestyle Tag</span>
+                  <span>{language === 'id' ? 'Buat Tag Gaya Hidup Baru' : 'Create New Lifestyle Tag'}</span>
                 </button>
               </div>
             )}

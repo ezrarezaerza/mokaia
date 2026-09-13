@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShieldAlert, Clock, Calculator, HeartHandshake, ArrowRight, X, Sparkles } from 'lucide-react';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface BehavioralInterceptionModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export const BehavioralInterceptionModal: React.FC<BehavioralInterceptionModalPr
   onUseComfortFund,
   onProceedAnyway,
 }) => {
+  const { format: formatMoney } = useCurrency();
   const [selectedLockHours, setSelectedLockHours] = useState<24 | 48>(24);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -82,7 +84,7 @@ export const BehavioralInterceptionModal: React.FC<BehavioralInterceptionModalPr
               </div>
 
               <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-amber-400 mb-0.5">
-                Mindful Friction Layer
+                Mindful Moment
               </div>
               <h3 className="text-lg font-extrabold text-white tracking-tight">
                 Pause for a Second 🌬️
@@ -110,7 +112,7 @@ export const BehavioralInterceptionModal: React.FC<BehavioralInterceptionModalPr
 
                 <div className="text-right shrink-0">
                   <div className="text-base sm:text-lg font-mono font-extrabold text-white">
-                    ${amount.toFixed(2)}
+                    {formatMoney(amount)}
                   </div>
                   <div className="text-[9px] font-mono text-amber-400 font-semibold uppercase">
                     Lifestyle Want
@@ -214,7 +216,7 @@ export const BehavioralInterceptionModal: React.FC<BehavioralInterceptionModalPr
                         <div className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
                           <span>Fund from The Comfort Fund</span>
                           <span className="text-[10px] font-bold text-emerald-400 font-mono shrink-0">
-                            ${comfortFundRemaining.toFixed(2)}
+                            {formatMoney(comfortFundRemaining)}
                           </span>
                         </div>
                         <div className="text-[11px] text-slate-400 truncate">

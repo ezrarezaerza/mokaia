@@ -10,6 +10,7 @@ import { CostPerUseVisualizerModal } from './CostPerUseVisualizerModal';
 import { BehavioralInterceptionModal } from './BehavioralInterceptionModal';
 import { soundFx } from '../lib/soundFx';
 import { haptics } from '../lib/haptics';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface QuickAddBottomSheetProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export const QuickAddBottomSheet: React.FC<QuickAddBottomSheetProps> = ({
   initialHoldInCoolingOff = false,
 }) => {
   const safeCategories = Array.isArray(categories) ? categories : [];
+  const { symbol, quickAddPresets, format, config } = useCurrency();
   const [type, setType] = useState<TransactionType>('EXPENSE');
   const [amountStr, setAmountStr] = useState<string>('');
   const [description, setDescription] = useState<string>('');
@@ -115,8 +117,14 @@ export const QuickAddBottomSheet: React.FC<QuickAddBottomSheetProps> = ({
   }, [isOpen, transactionToEdit, categories, initialHoldInCoolingOff]);
 
   const handleQuickAddAmount = (addValue: number) => {
+    soundFx.playTickSound();
+    haptics.selectionTick();
     const current = parseFloat(amountStr) || 0;
-    setAmountStr((current + addValue).toFixed(current % 1 === 0 ? 0 : 2));
+    const nextAmount = current + addValue;
+    setAmountStr(nextAmount.toFixed(current % 1 === 0 ? 0 : 2));
+    if (nextAmount >= 50 && mindfulTag === 'WANT') {
+      haptics.mindfulFriction();
+    }
   };
 
   const handleSendToCoolingOff = async (coolingHours: 24 | 48 = 24, customCpu?: number, customUses?: number) => {
@@ -162,14 +170,15 @@ export const QuickAddBottomSheet: React.FC<QuickAddBottomSheetProps> = ({
     }
 
     // Phase 2 Behavioral Interception:
-    // If logging an unreviewed WANT over $35, pause and present mindful alternatives
+    // If logging an unreviewed WANT over threshold, pause and present mindful alternatives
+    const interceptionThreshold = config.decimals === 0 ? 250000 : 35;
     if (
       !forceBypass &&
       !hasBypassedInterception &&
       !transactionToEdit &&
       type === 'EXPENSE' &&
       mindfulTag === 'WANT' &&
-      numAmount >= 35
+      numAmount >= interceptionThreshold
     ) {
       setIsInterceptionModalOpen(true);
       return;
@@ -320,13 +329,13 @@ export const QuickAddBottomSheet: React.FC<QuickAddBottomSheetProps> = ({
                 {transactionToEdit ? 'Adjust Amount' : 'Enter Amount'}
               </div>
               <div className="inline-flex items-center justify-center">
-                <span className="text-3xl sm:text-4xl font-light text-slate-500 mr-1">$</span>
+                <span className="text-2xl sm:text-3xl font-bold text-slate-400 mr-1.5">{symbol}</span>
                 <input
                   ref={amountInputRef}
                   type="number"
-                  step="0.01"
-                  inputMode="decimal"
-                  placeholder="0.00"
+                  step={config.decimals === 0 ? '1' : '0.01'}
+                  inputMode={config.decimals === 0 ? 'numeric' : 'decimal'}
+                  placeholder={config.decimals === 0 ? '0' : '0.00'}
                   value={amountStr}
                   onChange={(e) => setAmountStr(e.target.value)}
                   className="w-48 sm:w-56 text-4xl sm:text-5xl font-extrabold text-white text-center bg-transparent border-b-2 border-transparent focus:border-blue-500 focus:outline-hidden transition-all placeholder-slate-700"
@@ -336,14 +345,14 @@ export const QuickAddBottomSheet: React.FC<QuickAddBottomSheetProps> = ({
 
               {/* Quick Amount Buttons for frictionless logging */}
               <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
-                {QUICK_AMOUNTS.map((val) => (
+                {quickAddPresets.map((preset) => (
                   <button
-                    key={val}
+                    key={preset.label}
                     type="button"
-                    onClick={() => handleQuickAddAmount(val)}
+                    onClick={() => handleQuickAddAmount(preset.value)}
                     className="px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 text-xs font-medium font-mono transition cursor-pointer active:scale-95"
                   >
-                    +${val}
+                    {preset.label}
                   </button>
                 ))}
               </div>
@@ -373,7 +382,10 @@ export const QuickAddBottomSheet: React.FC<QuickAddBottomSheetProps> = ({
                     <button
                       key={cat.id}
                       type="button"
-                      onClick={() => setSelectedCategoryId(cat.id)}
+                      onClick={() => {
+                        setSelectedCategoryId(cat.id);
+                        haptics.selectionTick();
+                      }}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all cursor-pointer border ${
                         isSelected
                           ? 'bg-slate-800 text-white border-blue-500 shadow-xs shadow-blue-500/20 ring-1 ring-blue-500/30'
@@ -442,7 +454,14 @@ export const QuickAddBottomSheet: React.FC<QuickAddBottomSheetProps> = ({
                       <button
                         key={tagItem.tag}
                         type="button"
-                        onClick={() => setMindfulTag(tagItem.tag)}
+                        onClick={() => {
+                          setMindfulTag(tagItem.tag);
+                          if (tagItem.tag === 'WANT') {
+                            haptics.mindfulFriction();
+                          } else {
+                            haptics.selectionTick();
+                          }
+                        }}
                         className={`flex items-center gap-2 p-2 rounded-xl text-left transition-all cursor-pointer border ${
                           isSelected
                             ? 'bg-blue-600/20 border-blue-500/50 text-white'
@@ -545,7 +564,7 @@ export const QuickAddBottomSheet: React.FC<QuickAddBottomSheetProps> = ({
                         <div className="text-xs font-bold">Cost-Per-Use</div>
                         <div className="text-[10px] text-slate-400">
                           {costPerUse
-                            ? `$${costPerUse.toFixed(2)}/use (${estimatedUses}x)`
+                            ? `${format(costPerUse)}/use (${estimatedUses}x)`
                             : 'Calculate item ROI'}
                         </div>
                       </div>
@@ -575,7 +594,7 @@ export const QuickAddBottomSheet: React.FC<QuickAddBottomSheetProps> = ({
                       <div>
                         <div className="text-xs font-bold">The Comfort Fund</div>
                         <div className="text-[10px] text-slate-400">
-                          ${comfortFundRemaining.toFixed(2)} balance
+                          {format(comfortFundRemaining)} remaining
                         </div>
                       </div>
                     </div>

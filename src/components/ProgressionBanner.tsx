@@ -57,7 +57,7 @@ export const ProgressionBanner: React.FC<ProgressionBannerProps> = ({
       >
         {/* Main Grid / Flex Layout */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 mb-3">
-          {/* Player Identity: Rank & Level (Clickable to open EXP Journey & Audit History) */}
+          {/* Player Identity: Rank & Level (Clickable to open EXP Journey & Level Progress) */}
           <button
             type="button"
             onClick={() => {
@@ -65,7 +65,7 @@ export const ProgressionBanner: React.FC<ProgressionBannerProps> = ({
               setIsExpModalOpen(true);
             }}
             className="flex items-center gap-3 min-w-0 text-left hover:opacity-90 transition cursor-pointer group"
-            title="View EXP Journey & Audit History"
+            title="View EXP Journey & Level Progress"
           >
             <div
               className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-inner shrink-0 group-hover:scale-105 transition-transform"

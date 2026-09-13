@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calculator, X, Sparkles, Clock, Check, ShieldAlert } from 'lucide-react';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface CostPerUseVisualizerModalProps {
   isOpen: boolean;
@@ -30,7 +31,14 @@ export const CostPerUseVisualizerModal: React.FC<CostPerUseVisualizerModalProps>
   onApplyCalculation,
   onSendToCoolingOff,
 }) => {
-  const [price, setPrice] = useState<number>(initialAmount || 150);
+  const { format: formatMoney, symbol, config } = useCurrency();
+  const isZeroDecimal = config.decimals === 0;
+  const factor = isZeroDecimal ? 10000 : 1;
+  const t1 = isZeroDecimal ? 50000 : 5;
+  const t2 = isZeroDecimal ? 20000 : 2;
+  const t3 = isZeroDecimal ? 10000 : 1;
+
+  const [price, setPrice] = useState<number>(initialAmount || (isZeroDecimal ? 1500000 : 150));
   const [uses, setUses] = useState<number>(50);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -54,25 +62,25 @@ export const CostPerUseVisualizerModal: React.FC<CostPerUseVisualizerModalProps>
 
   // Emotional Anchor benchmark
   const getAnchorBenchmark = (cpu: number) => {
-    if (cpu <= 0.75) {
+    if (cpu <= 0.75 * factor) {
       return {
         badge: 'Outstanding Value',
         color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-        text: '☕ Less than half a coffee per use. Highly justified investment if used consistently!',
+        text: '☕ Highly justified investment if used consistently!',
       };
     }
-    if (cpu <= 2.5) {
+    if (cpu <= 2.5 * factor) {
       return {
         badge: 'Solid Utilitarian Buy',
         color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
-        text: '🥑 About the cost of an espresso or fruit snack per use. Reasonable daily ROI.',
+        text: '🥑 Reasonable daily ROI with great cost utility.',
       };
     }
-    if (cpu <= 8.0) {
+    if (cpu <= 8.0 * factor) {
       return {
         badge: 'Moderate Luxury',
         color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
-        text: '🥪 Equivalent to a quick sandwich or cinema ticket per use. Make sure you truly love it.',
+        text: '🥪 Equivalent to a quick meal per use. Make sure you truly love it.',
       };
     }
     return {
@@ -140,7 +148,7 @@ export const CostPerUseVisualizerModal: React.FC<CostPerUseVisualizerModalProps>
                 </div>
                 <div className="flex items-baseline justify-center gap-1.5 my-0.5">
                   <span className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-                    ${costPerUse.toFixed(2)}
+                    {formatMoney(costPerUse)}
                   </span>
                   <span className="text-xs sm:text-sm font-semibold text-slate-400 font-mono">/ wear or use</span>
                 </div>
@@ -164,17 +172,17 @@ export const CostPerUseVisualizerModal: React.FC<CostPerUseVisualizerModalProps>
                 <div className="space-y-1">
                   <label className="text-[11px] sm:text-xs font-semibold text-slate-400 flex justify-between">
                     <span>Upfront Cost</span>
-                    <span className="text-white font-mono font-bold">${price.toFixed(2)}</span>
+                    <span className="text-white font-mono font-bold">{formatMoney(price)}</span>
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-2 text-slate-500 font-semibold text-xs">$</span>
+                    <span className="absolute left-3 top-2 text-slate-500 font-semibold text-xs">{symbol}</span>
                     <input
                       type="number"
                       min="1"
-                      step="1"
+                      step={isZeroDecimal ? '1000' : '1'}
                       value={price}
                       onChange={(e) => setPrice(Math.max(1, parseFloat(e.target.value) || 1))}
-                      className="w-full pl-6 pr-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs sm:text-sm font-bold text-white focus:outline-hidden focus:border-blue-500"
+                      className="w-full pl-8 pr-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs sm:text-sm font-bold text-white focus:outline-hidden focus:border-blue-500"
                     />
                   </div>
                 </div>
@@ -255,16 +263,16 @@ export const CostPerUseVisualizerModal: React.FC<CostPerUseVisualizerModalProps>
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center text-[10px] sm:text-[11px]">
                   <div className="p-1.5 sm:p-2 rounded-lg bg-slate-800/80 border border-slate-700/60">
-                    <div className="text-slate-400 text-[10px]">At $5.00/use</div>
-                    <div className="font-bold text-white font-mono mt-0.5">{Math.ceil(price / 5)} uses</div>
+                    <div className="text-slate-400 text-[10px]">At {formatMoney(t1)}/use</div>
+                    <div className="font-bold text-white font-mono mt-0.5">{Math.ceil(price / t1)} uses</div>
                   </div>
                   <div className="p-1.5 sm:p-2 rounded-lg bg-slate-800/80 border border-slate-700/60">
-                    <div className="text-slate-400 text-[10px]">At $2.00/use</div>
-                    <div className="font-bold text-white font-mono mt-0.5">{Math.ceil(price / 2)} uses</div>
+                    <div className="text-slate-400 text-[10px]">At {formatMoney(t2)}/use</div>
+                    <div className="font-bold text-white font-mono mt-0.5">{Math.ceil(price / t2)} uses</div>
                   </div>
                   <div className="p-1.5 sm:p-2 rounded-lg bg-slate-800/80 border border-slate-700/60">
-                    <div className="text-slate-400 text-[10px]">At $1.00/use</div>
-                    <div className="font-bold text-white font-mono mt-0.5">{Math.ceil(price / 1)} uses</div>
+                    <div className="text-slate-400 text-[10px]">At {formatMoney(t3)}/use</div>
+                    <div className="font-bold text-white font-mono mt-0.5">{Math.ceil(price / t3)} uses</div>
                   </div>
                 </div>
               </div>

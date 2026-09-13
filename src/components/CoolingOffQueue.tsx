@@ -28,6 +28,7 @@ import type { LocalTransaction, LocalCategory } from '../types';
 import { soundFx } from '../lib/soundFx';
 import { haptics } from '../lib/haptics';
 import { ImpulseVictoryCelebrationModal } from './ImpulseVictoryCelebrationModal';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface CoolingOffQueueProps {
   userId: string;
@@ -52,6 +53,7 @@ export const CoolingOffQueue: React.FC<CoolingOffQueueProps> = ({
   onOpenQuickAdd,
   onOpenSpinner,
 }) => {
+  const { format: formatMoney } = useCurrency();
   const safeTransactions = Array.isArray(transactions) ? transactions : [];
   const safeCategories = Array.isArray(categories) ? categories : [];
   const handleOpenImpulse = onOpenQuickAdd || onAddImpulse;
@@ -98,6 +100,8 @@ export const CoolingOffQueue: React.FC<CoolingOffQueueProps> = ({
   // Handle impulse rejected (Saved Money celebration!)
   const handleReject = async (tx: LocalTransaction) => {
     try {
+      soundFx.playCoinSound();
+      haptics.successPulse();
       const victory = await rejectCoolingOffTransaction(tx.id);
       setVictoryModalData(victory);
       setIsVictoryModalOpen(true);
@@ -126,6 +130,8 @@ export const CoolingOffQueue: React.FC<CoolingOffQueueProps> = ({
 
   // Fast forward for testing / dev review
   const handleFastForward = async (txId: string) => {
+    soundFx.playTickSound();
+    haptics.unlockHaptic();
     await devFastForwardCoolingOff(txId);
     setNowUtc(Date.now());
   };
@@ -177,7 +183,7 @@ export const CoolingOffQueue: React.FC<CoolingOffQueueProps> = ({
               Impulse Holding Pen
             </h2>
             <p className="text-xs text-slate-400 max-w-md">
-              High-friction buffer designed to break emotional buying loops. Items stay locked for 24-48h before spending is committed.
+              A mindful pause to help you rethink non-essential desires. Items stay safely on pause for 24-48h before you decide to spend.
             </p>
           </div>
 
@@ -202,7 +208,7 @@ export const CoolingOffQueue: React.FC<CoolingOffQueueProps> = ({
               <span>Saved from Impulses</span>
             </div>
             <div className="text-xl font-extrabold text-white font-mono">
-              ${savingsStats.savedAmount.toFixed(2)}
+              {formatMoney(savingsStats.savedAmount)}
             </div>
             <div className="text-[10px] text-slate-400 mt-0.5">
               {savingsStats.rejectedCount} avoided temptations
@@ -215,7 +221,7 @@ export const CoolingOffQueue: React.FC<CoolingOffQueueProps> = ({
               <span>Currently Cooling Off</span>
             </div>
             <div className="text-xl font-extrabold text-white font-mono">
-              ${savingsStats.lockedAmount.toFixed(2)}
+              {formatMoney(savingsStats.lockedAmount)}
             </div>
             <div className="text-[10px] text-slate-400 mt-0.5">
               {lockedItems.length} active hold{lockedItems.length === 1 ? '' : 's'}
@@ -330,11 +336,11 @@ export const CoolingOffQueue: React.FC<CoolingOffQueueProps> = ({
 
                       <div className="text-right flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto">
                         <div className="text-2xl font-extrabold text-white font-mono tracking-tight">
-                          ${tx.amount.toFixed(2)}
+                          {formatMoney(tx.amount)}
                         </div>
                         {tx.costPerUse && (
                           <div className="text-[11px] font-mono text-cyan-400">
-                            ~${tx.costPerUse.toFixed(2)} / use ({tx.estimatedUses}x)
+                            ~{formatMoney(tx.costPerUse)} / use ({tx.estimatedUses}x)
                           </div>
                         )}
                       </div>
@@ -379,7 +385,7 @@ export const CoolingOffQueue: React.FC<CoolingOffQueueProps> = ({
                         className="flex-1 min-w-[160px] py-2.5 px-4 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                       >
                         <XCircle className="w-4 h-4 text-emerald-400" />
-                        <span>I Don&apos;t Need It (Save ${tx.amount.toFixed(2)}!)</span>
+                        <span>I Don&apos;t Need It (Save {formatMoney(tx.amount)}!)</span>
                       </button>
 
                       {/* Approval: Enabled once timer is expired */}
@@ -416,7 +422,7 @@ export const CoolingOffQueue: React.FC<CoolingOffQueueProps> = ({
               <span>Resisted Impulses Wall of Fame ({rejectedItems.length})</span>
             </h4>
             <span className="text-xs font-mono font-bold text-emerald-300">
-              +${savingsStats.savedAmount.toFixed(2)} Kept in Pocket
+              +{formatMoney(savingsStats.savedAmount)} Kept in Pocket
             </span>
           </div>
 
@@ -435,7 +441,7 @@ export const CoolingOffQueue: React.FC<CoolingOffQueueProps> = ({
                 </div>
                 <div className="text-right">
                   <span className="font-mono font-bold text-emerald-400">
-                    +${item.amount.toFixed(2)}
+                    +{formatMoney(item.amount)}
                   </span>
                 </div>
               </div>

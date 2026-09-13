@@ -22,6 +22,7 @@ import {
 import type { LocalUser } from '../types';
 import { soundFx } from '../lib/soundFx';
 import { haptics } from '../lib/haptics';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface ComfortFundCardProps {
   user: LocalUser;
@@ -34,6 +35,7 @@ export const ComfortFundCard: React.FC<ComfortFundCardProps> = ({
   onUserUpdated,
   onLogComfortSpend,
 }) => {
+  const { format: formatMoney, symbol, config } = useCurrency();
   const [isUnlocked, setIsUnlocked] = useState<boolean>(user.comfortFundUnlocked ?? false);
   const [isAdjustingAllowance, setIsAdjustingAllowance] = useState<boolean>(false);
   const [allowanceInput, setAllowanceInput] = useState<number>(user.comfortFundAllowance ?? 25);
@@ -171,24 +173,24 @@ export const ComfortFundCard: React.FC<ComfortFundCardProps> = ({
           >
             <div className="font-semibold text-white">Monthly Micro-Budget Allowance</div>
             <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-bold">$</span>
+              <span className="text-slate-400 font-bold">{symbol}</span>
               <input
                 type="number"
-                min="5"
-                step="5"
+                min={config.decimals === 0 ? '10000' : '5'}
+                step={config.decimals === 0 ? '10000' : '5'}
                 value={allowanceInput}
                 onChange={(e) => setAllowanceInput(Math.max(1, parseFloat(e.target.value) || 0))}
-                className="w-24 px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono font-bold focus:outline-hidden focus:border-emerald-500"
+                className="w-28 px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono font-bold focus:outline-hidden focus:border-emerald-500"
               />
               <div className="flex gap-1">
-                {[15, 25, 50].map((val) => (
+                {(config.decimals === 0 ? [100000, 250000, 500000] : [15, 25, 50]).map((val) => (
                   <button
                     key={val}
                     type="button"
                     onClick={() => setAllowanceInput(val)}
                     className="px-2 py-1 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-300 font-mono text-[10px]"
                   >
-                    ${val}
+                    {formatMoney(val, { compact: true })}
                   </button>
                 ))}
               </div>
@@ -213,11 +215,11 @@ export const ComfortFundCard: React.FC<ComfortFundCardProps> = ({
               Available Comfort Balance
             </div>
             <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-3xl font-black text-white font-mono tracking-tight">
-                ${remaining.toFixed(2)}
+              <span className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+                {formatMoney(remaining)}
               </span>
               <span className="text-xs font-mono text-slate-400">
-                / ${allowance.toFixed(2)} this month
+                / {formatMoney(allowance)} this month
               </span>
             </div>
           </div>
@@ -247,7 +249,7 @@ export const ComfortFundCard: React.FC<ComfortFundCardProps> = ({
           /* Slide To Unlock Interaction */
           <div className="space-y-2">
             <div className="text-xs text-slate-400 flex items-center justify-between">
-              <span>Intentional friction: slide slider to confirm emotional awareness</span>
+              <span>Take a mindful breath: slide to unlock your comfort spending</span>
               <span className="font-mono text-[10px] text-amber-400 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" />
                 Protected
@@ -315,7 +317,7 @@ export const ComfortFundCard: React.FC<ComfortFundCardProps> = ({
             <Calendar className="w-3.5 h-3.5 text-slate-500" />
             <span>Resets on the 1st of each month (UTC)</span>
           </div>
-          <span className="font-mono text-slate-500">Auto-Refill: ${allowance.toFixed(2)}</span>
+          <span className="font-mono text-slate-500">Auto-Refill: {formatMoney(allowance)}</span>
         </div>
       </div>
     </div>
